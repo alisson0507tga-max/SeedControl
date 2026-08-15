@@ -61,6 +61,9 @@ jobs:
       - name: Corrigir acesso à movimentação
         run: python scripts/patch-movimentacao.py
 
+      - name: Corrigir backup nativo no Android
+        run: python scripts/patch-backup-apk.py
+
       - name: Verificar arquivos e JavaScript
         shell: bash
         run: |
@@ -70,8 +73,10 @@ jobs:
           test -f native/www/manifest.json
           test -f native/www/movimentacao.html
           test -f native/www/movimentacao.js
+          test -f native/www/backup.js
           grep -q 'data-action="movimentar"' native/www/estoque.js
           grep -q 'movimentacao.html?id=' native/www/cultivar.js
+          grep -q 'Documentos/SeedControl' native/www/backup.js
           while IFS= read -r -d '' arquivo; do
             node --check "$arquivo"
           done < <(find native/www -maxdepth 1 -type f -name '*.js' -print0)
@@ -87,7 +92,8 @@ jobs:
             "private": true,
             "dependencies": {
               "@capacitor/android": "8.4.2",
-              "@capacitor/core": "8.4.2"
+              "@capacitor/core": "8.4.2",
+              "@capacitor/filesystem": "8.1.0"
             },
             "devDependencies": {
               "@capacitor/cli": "8.4.2"
