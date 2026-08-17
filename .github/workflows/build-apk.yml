@@ -80,7 +80,7 @@ jobs:
           test -f native/www/backup.js
           test -f native/www/cadastro.js
           test -f native/www/editar.js
-          test -f assets/seedcontrol-icon-v384.webp
+          test -f assets/seedcontrol-icon-v384.webp.b64
           grep -q 'data-action="movimentar"' native/www/estoque.js
           grep -q 'movimentacao.html?id=' native/www/cultivar.js
           grep -q 'Documentos/SeedControl' native/www/backup.js
@@ -129,13 +129,14 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Ajustar Android e forçar ícone SeedControl
+      - name: Ajustar Android e aplicar ícone SeedControl válido
         working-directory: native
         shell: python
         run: |
           from pathlib import Path
           import shutil
           import re
+          import base64
 
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           text = manifest.read_text(encoding='utf-8')
@@ -144,27 +145,40 @@ jobs:
           if permission not in text:
               text = text.replace('<application', permission + '\n\n    <application', 1)
 
-          icon_source = Path('../assets/seedcontrol-icon-v384.webp')
-          if not icon_source.exists():
-              raise SystemExit('Novo ícone v3.8.4 não encontrado.')
+          # Reconstrói o WebP real a partir do Base64 validado.
+          icon_b64 = Path('../assets/seedcontrol-icon-v384.webp.b64')
+          if not icon_b64.exists():
+              raise SystemExit('Base64 do novo ícone v3.8.4 não encontrado.')
+
+          try:
+              icon_bytes = base64.b64decode(icon_b64.read_text(encoding='utf-8').strip(), validate=True)
+          except Exception as exc:
+              raise SystemExit(f'Base64 do ícone inválido: {exc}')
+
+          if len(icon_bytes) < 1000:
+              raise SystemExit('Ícone reconstruído é pequeno demais.')
+          if icon_bytes[:4] != b'RIFF' or icon_bytes[8:12] != b'WEBP':
+              raise SystemExit('Ícone reconstruído não é um WebP válido.')
+
+          icon_source = Path('seedcontrol-icon-v384.webp')
+          icon_source.write_bytes(icon_bytes)
+          print(f'Ícone WebP válido reconstruído: {len(icon_bytes)} bytes')
 
           res = Path('android/app/src/main/res')
 
-          # Remove todas as variantes padrão do Capacitor para impedir
-          # que o launcher/HyperOS continue escolhendo o robozinho padrão.
+          # Remove todas as variantes padrão do Capacitor.
           for pasta in res.glob('mipmap*'):
               if pasta.is_dir():
                   for arquivo in pasta.glob('ic_launcher*'):
                       if arquivo.is_file():
                           arquivo.unlink()
 
-          # Um único recurso launcher, sem ambiguidade de densidade/versão.
+          # Recurso único usado tanto como ícone comum quanto redondo.
           mipmap = res / 'mipmap-nodpi'
           mipmap.mkdir(parents=True, exist_ok=True)
           shutil.copy2(icon_source, mipmap / 'ic_launcher.webp')
           shutil.copy2(icon_source, mipmap / 'ic_launcher_round.webp')
 
-          # Força o manifesto a usar exatamente os recursos substituídos.
           text, qtd_icon = re.subn(
               r'android:icon="[^"]+"',
               'android:icon="@mipmap/ic_launcher"',
@@ -179,28 +193,27 @@ jobs:
           )
 
           if qtd_icon != 1 or qtd_round != 1:
-              raise SystemExit('Não foi possível forçar icon/roundIcon no AndroidManifest.')
+              raise SystemExit('Não foi possível configurar icon/roundIcon no AndroidManifest.')
 
           manifest.write_text(text, encoding='utf-8')
 
-          # Validação antes de compilar.
           validado = manifest.read_text(encoding='utf-8')
           if 'android:icon="@mipmap/ic_launcher"' not in validado:
               raise SystemExit('android:icon não foi validado.')
           if 'android:roundIcon="@mipmap/ic_launcher_round"' not in validado:
               raise SystemExit('android:roundIcon não foi validado.')
-          if not (mipmap / 'ic_launcher.webp').exists():
-              raise SystemExit('ic_launcher.webp não foi criado.')
-          if not (mipmap / 'ic_launcher_round.webp').exists():
-              raise SystemExit('ic_launcher_round.webp não foi criado.')
+          if (mipmap / 'ic_launcher.webp').read_bytes()[:4] != b'RIFF':
+              raise SystemExit('ic_launcher.webp final inválido.')
+          if (mipmap / 'ic_launcher_round.webp').read_bytes()[:4] != b'RIFF':
+              raise SystemExit('ic_launcher_round.webp final inválido.')
 
           gradle = Path('android/app/build.gradle')
           g = gradle.read_text(encoding='utf-8')
-          g = g.replace('versionCode 1', 'versionCode 3805')
+          g = g.replace('versionCode 1', 'versionCode 3806')
           g = g.replace('versionName "1.0"', 'versionName "3.8.4"')
           gradle.write_text(g, encoding='utf-8')
 
-          print('Ícone launcher SeedControl forçado e validado.')
+          print('Ícone launcher SeedControl válido aplicado e validado.')
 
       - name: Restaurar chave de assinatura
         working-directory: native/android
@@ -216,16 +229,24 @@ jobs:
         working-directory: native/android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Validar manifesto final do APK
+      - name: Validar ícone no APK final
         working-directory: native/android
         shell: bash
         run: |
+          APK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          test -f "$APK"
+
           MERGED="$(find app/build/intermediates -type f -name AndroidManifest.xml | grep -E 'merged_manifests|packaged_manifests' | tail -n 1)"
           test -n "$MERGED"
           grep -q 'android:icon="@mipmap/ic_launcher"' "$MERGED"
           grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' "$MERGED"
-          test -f ../../assets/seedcontrol-icon-v384.webp
-          echo "Manifesto final validado com o novo launcher icon."
+
+          AAPT2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          test -x "$AAPT2"
+          "$AAPT2" dump badging "$APK" | tee /tmp/seedcontrol-badging.txt
+          grep -q "application:" /tmp/seedcontrol-badging.txt
+          grep -q "application-icon" /tmp/seedcontrol-badging.txt
+          echo "Manifesto e launcher icon confirmados dentro do APK final."
 
       - name: Assinar APK com chave permanente
         working-directory: native/android
@@ -240,7 +261,7 @@ jobs:
           test -n "$KEY_PASS"
 
           UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-iconfix-signed.apk"
+          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-iconfix2-signed.apk"
           test -f "$UNSIGNED"
 
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
@@ -259,7 +280,7 @@ jobs:
       - name: Guardar APK assinado
         uses: actions/upload-artifact@v7
         with:
-          name: SeedControl-v3.8.4-iconfix-signed-apk
-          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-iconfix-signed.apk
+          name: SeedControl-v3.8.4-iconfix2-signed-apk
+          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-iconfix2-signed.apk
           if-no-files-found: error
           retention-days: 14
