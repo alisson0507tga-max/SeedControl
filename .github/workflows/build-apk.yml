@@ -8,6 +8,7 @@ on:
       - "SeedControl*.zip"
       - ".github/workflows/build-apk.yml"
       - "scripts/**"
+      - "assets/**"
 
 permissions:
   contents: read
@@ -79,6 +80,7 @@ jobs:
           test -f native/www/backup.js
           test -f native/www/cadastro.js
           test -f native/www/editar.js
+          test -f assets/seedcontrol-icon-v384.webp
           grep -q 'data-action="movimentar"' native/www/estoque.js
           grep -q 'movimentacao.html?id=' native/www/cultivar.js
           grep -q 'Documentos/SeedControl' native/www/backup.js
@@ -140,13 +142,15 @@ jobs:
           if permission not in text:
               text = text.replace('<application', permission + '\n\n    <application', 1)
 
-          icon_source = Path('www/icon-512.png')
-          if icon_source.exists():
-              drawable = Path('android/app/src/main/res/drawable-nodpi')
-              drawable.mkdir(parents=True, exist_ok=True)
-              shutil.copy2(icon_source, drawable / 'seedcontrol_icon.png')
-              text = text.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@drawable/seedcontrol_icon"')
-              text = text.replace('android:roundIcon="@mipmap/ic_launcher_round"', 'android:roundIcon="@drawable/seedcontrol_icon"')
+          icon_source = Path('../assets/seedcontrol-icon-v384.webp')
+          if not icon_source.exists():
+              raise SystemExit('Novo ícone v3.8.4 não encontrado.')
+
+          drawable = Path('android/app/src/main/res/drawable-nodpi')
+          drawable.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(icon_source, drawable / 'seedcontrol_icon.webp')
+          text = text.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@drawable/seedcontrol_icon"')
+          text = text.replace('android:roundIcon="@mipmap/ic_launcher_round"', 'android:roundIcon="@drawable/seedcontrol_icon"')
 
           manifest.write_text(text, encoding='utf-8')
 
