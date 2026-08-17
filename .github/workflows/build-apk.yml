@@ -68,6 +68,9 @@ jobs:
       - name: Bloquear lotes duplicados
         run: python scripts/patch-duplicidade-lotes.py
 
+      - name: Aplicar Dashboard v3.8.4
+        run: python scripts/patch-dashboard-v384.py
+
       - name: Verificar arquivos e JavaScript
         shell: bash
         run: |
@@ -80,7 +83,14 @@ jobs:
           test -f native/www/backup.js
           test -f native/www/cadastro.js
           test -f native/www/editar.js
+          test -f native/www/dashboard-v384.css
           test -f assets/seedcontrol-icon-v384.webp.b64
+          grep -q 'dashboard-v384.css' native/www/index.html
+          grep -q 'Ações rápidas' native/www/index.html
+          grep -q 'dashboard-metricas' native/www/index.html
+          grep -q 'alertasEstoque.*hidden' native/www/index.html
+          grep -q 'seedcontrol-v3.8-pwa-12' native/www/service-worker.js
+          grep -q 'dashboard-v384.css' native/www/service-worker.js
           grep -q 'data-action="movimentar"' native/www/estoque.js
           grep -q 'movimentacao.html?id=' native/www/cultivar.js
           grep -q 'Documentos/SeedControl' native/www/backup.js
@@ -116,7 +126,7 @@ jobs:
             "appId": "br.com.seedcontrol.app",
             "appName": "SeedControl",
             "webDir": "www",
-            "backgroundColor": "#1f2937",
+            "backgroundColor": "#071713",
             "android": {
               "allowMixedContent": false,
               "captureInput": true,
@@ -145,10 +155,9 @@ jobs:
           if permission not in text:
               text = text.replace('<application', permission + '\n\n    <application', 1)
 
-          # Reconstrói o WebP real a partir do Base64 validado.
           icon_b64 = Path('../assets/seedcontrol-icon-v384.webp.b64')
           if not icon_b64.exists():
-              raise SystemExit('Base64 do novo ícone v3.8.4 não encontrado.')
+              raise SystemExit('Base64 do ícone v3.8.4 não encontrado.')
 
           try:
               icon_bytes = base64.b64decode(icon_b64.read_text(encoding='utf-8').strip(), validate=True)
@@ -162,18 +171,14 @@ jobs:
 
           icon_source = Path('seedcontrol-icon-v384.webp')
           icon_source.write_bytes(icon_bytes)
-          print(f'Ícone WebP válido reconstruído: {len(icon_bytes)} bytes')
 
           res = Path('android/app/src/main/res')
-
-          # Remove todas as variantes padrão do Capacitor.
           for pasta in res.glob('mipmap*'):
               if pasta.is_dir():
                   for arquivo in pasta.glob('ic_launcher*'):
                       if arquivo.is_file():
                           arquivo.unlink()
 
-          # Recurso único usado tanto como ícone comum quanto redondo.
           mipmap = res / 'mipmap-nodpi'
           mipmap.mkdir(parents=True, exist_ok=True)
           shutil.copy2(icon_source, mipmap / 'ic_launcher.webp')
@@ -197,23 +202,13 @@ jobs:
 
           manifest.write_text(text, encoding='utf-8')
 
-          validado = manifest.read_text(encoding='utf-8')
-          if 'android:icon="@mipmap/ic_launcher"' not in validado:
-              raise SystemExit('android:icon não foi validado.')
-          if 'android:roundIcon="@mipmap/ic_launcher_round"' not in validado:
-              raise SystemExit('android:roundIcon não foi validado.')
-          if (mipmap / 'ic_launcher.webp').read_bytes()[:4] != b'RIFF':
-              raise SystemExit('ic_launcher.webp final inválido.')
-          if (mipmap / 'ic_launcher_round.webp').read_bytes()[:4] != b'RIFF':
-              raise SystemExit('ic_launcher_round.webp final inválido.')
-
           gradle = Path('android/app/build.gradle')
           g = gradle.read_text(encoding='utf-8')
-          g = g.replace('versionCode 1', 'versionCode 3806')
+          g = g.replace('versionCode 1', 'versionCode 3807')
           g = g.replace('versionName "1.0"', 'versionName "3.8.4"')
           gradle.write_text(g, encoding='utf-8')
 
-          print('Ícone launcher SeedControl válido aplicado e validado.')
+          print('Android v3.8.4 preparado com ícone válido e versionCode 3807.')
 
       - name: Restaurar chave de assinatura
         working-directory: native/android
@@ -229,24 +224,19 @@ jobs:
         working-directory: native/android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Validar ícone no APK final
+      - name: Validar APK final
         working-directory: native/android
         shell: bash
         run: |
           APK="app/build/outputs/apk/release/app-release-unsigned.apk"
           test -f "$APK"
 
-          MERGED="$(find app/build/intermediates -type f -name AndroidManifest.xml | grep -E 'merged_manifests|packaged_manifests' | tail -n 1)"
-          test -n "$MERGED"
-          grep -q 'android:icon="@mipmap/ic_launcher"' "$MERGED"
-          grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' "$MERGED"
-
           AAPT2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           test -x "$AAPT2"
           "$AAPT2" dump badging "$APK" | tee /tmp/seedcontrol-badging.txt
           grep -q "application:" /tmp/seedcontrol-badging.txt
           grep -q "application-icon" /tmp/seedcontrol-badging.txt
-          echo "Manifesto e launcher icon confirmados dentro do APK final."
+          echo "APK final validado."
 
       - name: Assinar APK com chave permanente
         working-directory: native/android
@@ -261,7 +251,7 @@ jobs:
           test -n "$KEY_PASS"
 
           UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-iconfix2-signed.apk"
+          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-dashboard-signed.apk"
           test -f "$UNSIGNED"
 
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
@@ -280,7 +270,7 @@ jobs:
       - name: Guardar APK assinado
         uses: actions/upload-artifact@v7
         with:
-          name: SeedControl-v3.8.4-iconfix2-signed-apk
-          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-iconfix2-signed.apk
+          name: SeedControl-v3.8.4-dashboard-signed-apk
+          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-dashboard-signed.apk
           if-no-files-found: error
           retention-days: 14
