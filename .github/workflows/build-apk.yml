@@ -77,11 +77,14 @@ jobs:
           test -f native/www/movimentacao.html
           test -f native/www/movimentacao.js
           test -f native/www/backup.js
+          test -f native/www/cadastro.js
+          test -f native/www/editar.js
           grep -q 'data-action="movimentar"' native/www/estoque.js
           grep -q 'movimentacao.html?id=' native/www/cultivar.js
           grep -q 'Documentos/SeedControl' native/www/backup.js
-          grep -q 'function existeLoteDuplicado' native/www/database.js
-          grep -q 'Este lote já está cadastrado' native/www/database.js
+          grep -q 'seedcontrol-duplicidade-cadastro-v383' native/www/cadastro.js
+          grep -q 'Este lote já está cadastrado' native/www/cadastro.js
+          grep -q 'seedcontrol-duplicidade-edicao-v383' native/www/editar.js
           while IFS= read -r -d '' arquivo; do
             node --check "$arquivo"
           done < <(find native/www -maxdepth 1 -type f -name '*.js' -print0)
