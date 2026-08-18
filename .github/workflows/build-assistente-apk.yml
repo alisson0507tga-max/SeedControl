@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/build-assistente-apk.yml"
       - "scripts/patch-assistente-conversa-v384.py"
+      - "scripts/patch-assistente-cache-v384.py"
 
 permissions:
   contents: read
@@ -59,6 +60,7 @@ jobs:
           python scripts/patch-cadastro-v384.py
           python scripts/patch-visual-geral-v384.py
           python scripts/patch-assistente-conversa-v384.py
+          python scripts/patch-assistente-cache-v384.py
 
       - name: Validar Assistente web
         shell: bash
@@ -68,15 +70,19 @@ jobs:
           test -f native/www/assistente-v384.js
           test -f native/www/database.js
           test -f native/www/app-v384.css
+          test -f native/www/service-worker.js
 
           grep -q 'assistente-v384.css' native/www/assistente.html
           grep -q 'assistente-v384.js' native/www/assistente.html
           grep -q 'btnMicrofoneAssistente' native/www/assistente.html
+          grep -q 'data-assistente-versao="38418"' native/www/assistente.html
           grep -q 'seedcontrol-assistente-conversa-v384' native/www/assistente-v384.js
           grep -q 'SpeechRecognition' native/www/assistente-v384.js
           grep -q 'confirmarMovimento' native/www/assistente-v384.js
           grep -q 'salvarBase' native/www/assistente-v384.js
           grep -q 'seedcontrol-assistente-conversa-v384' native/www/assistente-v384.css
+          grep -q 'assistente.html?v=38418' native/www/index.html
+          grep -q 'seedcontrol-v3.8-pwa-18' native/www/service-worker.js
 
           node --check native/www/assistente-v384.js
 
@@ -152,7 +158,6 @@ jobs:
           if camera not in text:
               text = text.replace('<application', camera + '\n\n    <application', 1)
 
-          # Garantia extra para reconhecimento de voz no Android.
           audio = '<uses-permission android:name="android.permission.RECORD_AUDIO" />'
           if audio not in text:
               text = text.replace('<application', audio + '\n\n    <application', 1)
@@ -185,11 +190,11 @@ jobs:
 
           gradle = Path('android/app/build.gradle')
           g = gradle.read_text(encoding='utf-8')
-          g = g.replace('versionCode 1', 'versionCode 3816')
+          g = g.replace('versionCode 1', 'versionCode 3817')
           g = g.replace('versionName "1.0"', 'versionName "3.8.4"')
           gradle.write_text(g, encoding='utf-8')
 
-          print('SeedControl v3.8.4 Assistente preparado com versionCode 3816.')
+          print('SeedControl v3.8.4 Assistente cachefix preparado com versionCode 3817.')
 
       - name: Restaurar chave de assinatura
         working-directory: native/android
@@ -215,21 +220,27 @@ jobs:
           unzip -l "$APK" | grep -q 'assets/public/assistente.html'
           unzip -l "$APK" | grep -q 'assets/public/assistente-v384.css'
           unzip -l "$APK" | grep -q 'assets/public/assistente-v384.js'
+          unzip -l "$APK" | grep -q 'assets/public/service-worker.js'
           unzip -l "$APK" | grep -q 'assets/public/cadastro-v384.js'
           unzip -l "$APK" | grep -q 'assets/public/estoque-v384.css'
 
           TMP="$(mktemp -d)"
           unzip -q "$APK" \
+            'assets/public/index.html' \
             'assets/public/assistente.html' \
             'assets/public/assistente-v384.js' \
+            'assets/public/service-worker.js' \
             -d "$TMP"
           grep -q 'btnMicrofoneAssistente' "$TMP/assets/public/assistente.html"
+          grep -q 'data-assistente-versao="38418"' "$TMP/assets/public/assistente.html"
           grep -q 'SpeechRecognition' "$TMP/assets/public/assistente-v384.js"
           grep -q 'confirmarMovimento' "$TMP/assets/public/assistente-v384.js"
+          grep -q 'assistente.html?v=38418' "$TMP/assets/public/index.html"
+          grep -q 'seedcontrol-v3.8-pwa-18' "$TMP/assets/public/service-worker.js"
 
           AAPT2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           "$AAPT2" dump badging "$APK" | grep -q "application:"
-          echo "APK validado com Assistente SeedControl por texto e voz."
+          echo "APK validado com Assistente novo e cache atualizado."
 
       - name: Assinar APK
         working-directory: native/android
@@ -240,7 +251,7 @@ jobs:
           KEY_PASS: ${{ secrets.SEEDCONTROL_KEY_PASSWORD }}
         run: |
           UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-assistente-voz-signed.apk"
+          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-assistente-cachefix-signed.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
 
           "$APKSIGNER" sign \
@@ -256,7 +267,7 @@ jobs:
       - name: Guardar APK assinado
         uses: actions/upload-artifact@v7
         with:
-          name: SeedControl-v3.8.4-assistente-voz-signed-apk
-          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-assistente-voz-signed.apk
+          name: SeedControl-v3.8.4-assistente-cachefix-signed-apk
+          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-assistente-cachefix-signed.apk
           if-no-files-found: error
           retention-days: 14
