@@ -153,7 +153,7 @@ if qtd_func_pdf != 1:
 salvar_pdf_antigo = '''    pdf.save(
         "Relatorio_SeedControl.pdf"
     );'''
-salvar_pdf_novo = '''    const nomeArquivoPDF =
+salvar_pdf_novo = r'''    const nomeArquivoPDF =
         "Relatorio_SeedControl.pdf";
 
     if (seedRelatorioPlataformaNativa()) {
@@ -215,7 +215,7 @@ salvar_excel_antigo = '''    XLSX.writeFile(
         workbook,
         "Relatorio_SeedControl.xlsx"
     );'''
-salvar_excel_novo = '''    const nomeArquivoExcel =
+salvar_excel_novo = r'''    const nomeArquivoExcel =
         "Relatorio_SeedControl.xlsx";
 
     if (seedRelatorioPlataformaNativa()) {
@@ -287,6 +287,8 @@ validacoes = [
     ('directory: "DOCUMENTS"', js_final),
     ('pdf.output("arraybuffer")', js_final),
     ('type: "array"', js_final),
+    ('Não foi possível salvar o PDF.\\n\\n', js_final),
+    ('Não foi possível salvar o Excel.\\n\\n', js_final),
 ]
 
 for trecho, conteudo in validacoes:
