@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path('native/www')
 HTML = ROOT / 'estoque.html'
@@ -525,20 +526,28 @@ css = r'''/* SeedControl v3.8.4 - Estoque */
 
 CSS.write_text(css, encoding='utf-8')
 
+# Service Worker é usado na PWA. No APK os arquivos de www já são empacotados
+# diretamente pelo Capacitor. Portanto, uma lista de cache em formato diferente
+# nunca deve bloquear a geração do APK.
 if SW.exists():
     sw = SW.read_text(encoding='utf-8')
+
     if 'seedcontrol-v3.8-pwa-14' in sw:
         sw = sw.replace('seedcontrol-v3.8-pwa-14', 'seedcontrol-v3.8-pwa-15', 1)
     elif 'seedcontrol-v3.8-pwa-15' not in sw:
-        raise SystemExit('Versão esperada do cache (pwa-14) não encontrada.')
+        print('Aviso: versão do cache diferente da esperada; mantendo versão existente.')
 
-    if '"estoque-v384.css"' not in sw and "'estoque-v384.css'" not in sw:
-        if '"style.css"' in sw:
-            sw = sw.replace('"style.css",', '"style.css",\n    "estoque-v384.css",', 1)
-        elif "'style.css'" in sw:
-            sw = sw.replace("'style.css',", "'style.css',\n    'estoque-v384.css',", 1)
+    if 'estoque-v384.css' not in sw:
+        padrao_ancora = re.compile(
+            r'([\"\'](?:\./)?(?:dashboard-v384|style)\.css[\"\'])\s*,?'
+        )
+        encontrado = padrao_ancora.search(sw)
+        if encontrado:
+            ancora = encontrado.group(1)
+            substituicao = ancora + ',\n    "estoque-v384.css",'
+            sw = sw[:encontrado.start()] + substituicao + sw[encontrado.end():]
         else:
-            raise SystemExit('style.css não encontrado na lista do Service Worker.')
+            print('Aviso: lista de cache do Service Worker não reconhecida; CSS seguirá empacotado no APK.')
 
     SW.write_text(sw, encoding='utf-8')
 
