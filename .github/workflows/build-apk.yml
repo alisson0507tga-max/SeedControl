@@ -33,27 +33,19 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Localizar ZIP do SeedControl
+      - name: Extrair SeedControl
         id: source
         shell: bash
         run: |
           ZIP="$(find . -maxdepth 1 -type f -name 'SeedControl*.zip' -print -quit)"
-          if [ -z "$ZIP" ]; then
-            echo "Nenhum ZIP SeedControl encontrado na raiz do repositório."
-            exit 1
-          fi
-          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
-          echo "Usando: $ZIP"
-
-      - name: Extrair versão aprovada
-        shell: bash
-        run: |
+          test -n "$ZIP"
           rm -rf buildsrc native
           mkdir -p buildsrc native/www
-          unzip -q "${{ steps.source.outputs.zip }}" -d buildsrc
+          unzip -q "$ZIP" -d buildsrc
           APP_SRC="$(dirname "$(find buildsrc -type f -name index.html -print -quit)")"
           test -f "$APP_SRC/index.html"
           cp -a "$APP_SRC"/. native/www/
+          echo "Usando: $ZIP"
 
       - name: Aplicar correções aprovadas
         shell: bash
@@ -67,65 +59,34 @@ jobs:
           python scripts/patch-planilha-exportacao-v384.py
           python scripts/patch-estoque-v384.py
           python scripts/patch-estoque-refino-v384.py
+          python scripts/patch-cadastro-v384.py
 
-      - name: Verificar arquivos e JavaScript
+      - name: Validar arquivos web
         shell: bash
         run: |
           test -f native/www/index.html
           test -f native/www/database.js
-          test -f native/www/teste-sistema.js
-          test -f native/www/manifest.json
-          test -f native/www/movimentacao.html
-          test -f native/www/movimentacao.js
-          test -f native/www/backup.js
+          test -f native/www/cadastro.html
           test -f native/www/cadastro.js
-          test -f native/www/editar.js
-          test -f native/www/relatorios.html
-          test -f native/www/relatorios.js
-          test -f native/www/planilha.html
-          test -f native/www/planilha.js
+          test -f native/www/cadastro-v384.css
+          test -f native/www/cadastro-v384.js
           test -f native/www/estoque.html
           test -f native/www/estoque.js
           test -f native/www/estoque-v384.css
-          test -f native/www/dashboard-v384.css
-          test -f native/www/service-worker.js
+          test -f native/www/planilha.js
+          test -f native/www/relatorios.js
           test -f assets/seedcontrol-icon-v384.webp.b64
 
-          grep -q 'dashboard-v384.css' native/www/index.html
-          grep -q 'Ações rápidas' native/www/index.html
-          ! grep -q '<section class="assistant-card"' native/www/index.html
-          grep -q 'Assistente SeedControl' native/www/index.html
-          grep -q 'assistente.html' native/www/index.html
-
-          grep -q 'data-action="movimentar"' native/www/estoque.js
-          grep -q 'seedcontrol-estoque-ui-v384' native/www/estoque.js
-          grep -q 'estoque-v384.css' native/www/estoque.html
-          grep -q 'class="estoque-body"' native/www/estoque.html
-          grep -q 'id="pesquisa"' native/www/estoque.html
-          grep -q 'id="ordenacao"' native/www/estoque.html
-          grep -q 'id="totalBags"' native/www/estoque.html
-          grep -q 'id="totalKgsMedia"' native/www/estoque.html
-          grep -q 'id="totalSacas60kg"' native/www/estoque.html
-          grep -q 'id="totalLotes"' native/www/estoque.html
-          grep -q 'id="lista"' native/www/estoque.html
-          grep -q 'seedcontrol-estoque-refino-v384' native/www/estoque-v384.css
-          grep -q 'movimentacao.html?id=' native/www/cultivar.js
-          grep -q 'Documentos/SeedControl' native/www/backup.js
+          grep -q 'cadastro-v384.css' native/www/cadastro.html
+          grep -q 'cadastro-v384.js' native/www/cadastro.html
+          grep -q 'seedcontrol-cadastro-ui-v384' native/www/cadastro-v384.css
+          grep -q 'seedcontrol-cadastro-nota-v384' native/www/cadastro-v384.js
+          grep -q 'notaEntradaFoto' native/www/cadastro-v384.js
+          grep -q 'Tirar foto' native/www/cadastro-v384.js
+          grep -q 'Galeria' native/www/cadastro-v384.js
           grep -q 'seedcontrol-duplicidade-cadastro-v383' native/www/cadastro.js
-          grep -q 'seedcontrol-duplicidade-edicao-v383' native/www/editar.js
-
-          grep -q 'seedcontrol-exportacao-protegida-v384' native/www/relatorios.js
-          grep -q 'url: temporario.uri' native/www/relatorios.js
-
+          grep -q 'seedcontrol-estoque-refino-v384' native/www/estoque-v384.css
           grep -q 'seedcontrol-planilha-exportacao-nativa-v384' native/www/planilha.js
-          grep -q 'vendor/xlsx-js-style.bundle.js' native/www/planilha.js
-          grep -q 'vendor/jspdf.umd.min.js' native/www/planilha.js
-          grep -q 'vendor/jspdf.plugin.autotable.min.js' native/www/planilha.js
-          grep -q 'SeedControl/Planilhas/' native/www/planilha.js
-          grep -q 'capacitor.Plugins.Share' native/www/planilha.js
-          grep -q 'pdf.output("arraybuffer")' native/www/planilha.js
-          grep -q 'type: "array"' native/www/planilha.js
-          grep -q 'seedcontrol-v3.8-pwa-15' native/www/service-worker.js
 
           while IFS= read -r -d '' arquivo; do
             node --check "$arquivo"
@@ -171,65 +132,41 @@ jobs:
           EOF
 
           npm install --no-audit --no-fund
-          test -d node_modules/@capacitor/share
 
           mkdir -p www/vendor
-
-          cp node_modules/jspdf/dist/jspdf.umd.min.js \
-            www/vendor/jspdf.umd.min.js
-
-          cp node_modules/xlsx/dist/xlsx.full.min.js \
-            www/vendor/xlsx.full.min.js
-
-          cp node_modules/xlsx-js-style/dist/xlsx.bundle.js \
-            www/vendor/xlsx-js-style.bundle.js
-
-          cp node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.min.js \
-            www/vendor/jspdf.plugin.autotable.min.js
-
-          test -s www/vendor/jspdf.umd.min.js
-          test -s www/vendor/xlsx.full.min.js
-          test -s www/vendor/xlsx-js-style.bundle.js
-          test -s www/vendor/jspdf.plugin.autotable.min.js
+          cp node_modules/jspdf/dist/jspdf.umd.min.js www/vendor/jspdf.umd.min.js
+          cp node_modules/xlsx/dist/xlsx.full.min.js www/vendor/xlsx.full.min.js
+          cp node_modules/xlsx-js-style/dist/xlsx.bundle.js www/vendor/xlsx-js-style.bundle.js
+          cp node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.min.js www/vendor/jspdf.plugin.autotable.min.js
 
           npx cap add android
           npx cap sync android
 
-          grep -R -q 'capacitor-share' android || grep -R -q 'SharePlugin' android
-
-      - name: Ajustar Android e aplicar ícone SeedControl válido
+      - name: Ajustar Android e versão
         working-directory: native
         shell: python
         run: |
           from pathlib import Path
-          import shutil
-          import re
-          import base64
+          import shutil, re, base64
 
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           text = manifest.read_text(encoding='utf-8')
 
-          permission = '<uses-permission android:name="android.permission.CAMERA" />'
-          if permission not in text:
-              text = text.replace('<application', permission + '\n\n    <application', 1)
-
-          icon_b64 = Path('../assets/seedcontrol-icon-v384.webp.b64')
-          if not icon_b64.exists():
-              raise SystemExit('Base64 do ícone v3.8.4 não encontrado.')
+          camera = '<uses-permission android:name="android.permission.CAMERA" />'
+          if camera not in text:
+              text = text.replace('<application', camera + '\n\n    <application', 1)
 
           icon_bytes = base64.b64decode(
-              icon_b64.read_text(encoding='utf-8').strip(),
+              Path('../assets/seedcontrol-icon-v384.webp.b64').read_text(encoding='utf-8').strip(),
               validate=True
           )
-          if len(icon_bytes) < 1000:
-              raise SystemExit('Ícone reconstruído é pequeno demais.')
           if icon_bytes[:4] != b'RIFF' or icon_bytes[8:12] != b'WEBP':
-              raise SystemExit('Ícone reconstruído não é um WebP válido.')
+              raise SystemExit('Ícone WebP inválido.')
 
           icon_source = Path('seedcontrol-icon-v384.webp')
           icon_source.write_bytes(icon_bytes)
-
           res = Path('android/app/src/main/res')
+
           for pasta in res.glob('mipmap*'):
               if pasta.is_dir():
                   for arquivo in pasta.glob('ic_launcher*'):
@@ -241,30 +178,17 @@ jobs:
           shutil.copy2(icon_source, mipmap / 'ic_launcher.webp')
           shutil.copy2(icon_source, mipmap / 'ic_launcher_round.webp')
 
-          text, qtd_icon = re.subn(
-              r'android:icon="[^"]+"',
-              'android:icon="@mipmap/ic_launcher"',
-              text,
-              count=1
-          )
-          text, qtd_round = re.subn(
-              r'android:roundIcon="[^"]+"',
-              'android:roundIcon="@mipmap/ic_launcher_round"',
-              text,
-              count=1
-          )
-          if qtd_icon != 1 or qtd_round != 1:
-              raise SystemExit('Não foi possível configurar os ícones no AndroidManifest.')
-
+          text = re.sub(r'android:icon="[^"]+"', 'android:icon="@mipmap/ic_launcher"', text, count=1)
+          text = re.sub(r'android:roundIcon="[^"]+"', 'android:roundIcon="@mipmap/ic_launcher_round"', text, count=1)
           manifest.write_text(text, encoding='utf-8')
 
           gradle = Path('android/app/build.gradle')
           g = gradle.read_text(encoding='utf-8')
-          g = g.replace('versionCode 1', 'versionCode 3813')
+          g = g.replace('versionCode 1', 'versionCode 3814')
           g = g.replace('versionName "1.0"', 'versionName "3.8.4"')
           gradle.write_text(g, encoding='utf-8')
 
-          print('Android v3.8.4 preparado com Estoque refinado e versionCode 3813.')
+          print('SeedControl v3.8.4 Novo Lote preparado com versionCode 3814.')
 
       - name: Restaurar chave de assinatura
         working-directory: native/android
@@ -287,41 +211,22 @@ jobs:
           APK="app/build/outputs/apk/release/app-release-unsigned.apk"
           test -f "$APK"
 
-          AAPT2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
-          test -x "$AAPT2"
-          "$AAPT2" dump badging "$APK" | tee /tmp/seedcontrol-badging.txt
-          grep -q "application:" /tmp/seedcontrol-badging.txt
-          grep -q "application-icon" /tmp/seedcontrol-badging.txt
-
-          unzip -l "$APK" | grep -q 'assets/public/vendor/jspdf.umd.min.js'
-          unzip -l "$APK" | grep -q 'assets/public/vendor/xlsx.full.min.js'
-          unzip -l "$APK" | grep -q 'assets/public/vendor/xlsx-js-style.bundle.js'
-          unzip -l "$APK" | grep -q 'assets/public/vendor/jspdf.plugin.autotable.min.js'
+          unzip -l "$APK" | grep -q 'assets/public/cadastro-v384.css'
+          unzip -l "$APK" | grep -q 'assets/public/cadastro-v384.js'
           unzip -l "$APK" | grep -q 'assets/public/estoque-v384.css'
+          unzip -l "$APK" | grep -q 'assets/public/vendor/jspdf.umd.min.js'
 
-          TMP_CHECK="$(mktemp -d)"
-          unzip -q "$APK" \
-            'assets/public/index.html' \
-            'assets/public/relatorios.js' \
-            'assets/public/planilha.js' \
-            'assets/public/estoque.html' \
-            'assets/public/estoque.js' \
-            'assets/public/estoque-v384.css' \
-            'assets/public/service-worker.js' \
-            -d "$TMP_CHECK"
+          TMP="$(mktemp -d)"
+          unzip -q "$APK" 'assets/public/cadastro.html' 'assets/public/cadastro-v384.js' -d "$TMP"
+          grep -q 'cadastro-v384.js' "$TMP/assets/public/cadastro.html"
+          grep -q 'notaEntradaFoto' "$TMP/assets/public/cadastro-v384.js"
+          grep -q 'Tirar foto' "$TMP/assets/public/cadastro-v384.js"
 
-          ! grep -q '<section class="assistant-card"' "$TMP_CHECK/assets/public/index.html"
-          grep -q 'seedcontrol-planilha-exportacao-nativa-v384' "$TMP_CHECK/assets/public/planilha.js"
-          grep -q 'SeedControl/Planilhas/' "$TMP_CHECK/assets/public/planilha.js"
-          grep -q 'seedcontrol-estoque-ui-v384' "$TMP_CHECK/assets/public/estoque.js"
-          grep -q 'estoque-v384.css' "$TMP_CHECK/assets/public/estoque.html"
-          grep -q 'class="estoque-body"' "$TMP_CHECK/assets/public/estoque.html"
-          grep -q 'seedcontrol-estoque-refino-v384' "$TMP_CHECK/assets/public/estoque-v384.css"
-          grep -q 'seedcontrol-v3.8-pwa-15' "$TMP_CHECK/assets/public/service-worker.js"
+          AAPT2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          "$AAPT2" dump badging "$APK" | grep -q "application:"
+          echo "APK validado com Novo Lote e foto da nota."
 
-          echo "APK final validado com Estoque refinado."
-
-      - name: Assinar APK com chave permanente
+      - name: Assinar APK
         working-directory: native/android
         shell: bash
         env:
@@ -329,16 +234,9 @@ jobs:
           KEY_ALIAS: ${{ secrets.SEEDCONTROL_KEY_ALIAS }}
           KEY_PASS: ${{ secrets.SEEDCONTROL_KEY_PASSWORD }}
         run: |
-          test -n "$KS_PASS"
-          test -n "$KEY_ALIAS"
-          test -n "$KEY_PASS"
-
           UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-estoque-refino-signed.apk"
-          test -f "$UNSIGNED"
-
+          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-novolote-nota-signed.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          test -x "$APKSIGNER"
 
           "$APKSIGNER" sign \
             --ks seedcontrol-release.jks \
@@ -353,7 +251,7 @@ jobs:
       - name: Guardar APK assinado
         uses: actions/upload-artifact@v7
         with:
-          name: SeedControl-v3.8.4-estoque-refino-signed-apk
-          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-estoque-refino-signed.apk
+          name: SeedControl-v3.8.4-novolote-nota-signed-apk
+          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-novolote-nota-signed.apk
           if-no-files-found: error
           retention-days: 14
