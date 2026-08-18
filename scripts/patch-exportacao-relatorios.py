@@ -11,7 +11,6 @@ if not HTML.exists() or not JS.exists():
 html = HTML.read_text(encoding="utf-8")
 js = JS.read_text(encoding="utf-8")
 
-# Mantém jsPDF e XLSX dentro do APK, sem depender de CDN durante o uso.
 html, qtd_pdf = re.subn(
     r'<script\s+src="https://cdnjs\.cloudflare\.com/ajax/libs/jspdf/[^\"]+/jspdf\.umd\.min\.js"></script>',
     '<script src="vendor/jspdf.umd.min.js"></script>',
@@ -32,7 +31,7 @@ if qtd_xlsx != 1:
 
 helper = r'''
 // ===============================
-// SALVAMENTO NATIVO DE RELATÓRIOS
+// SALVAR E COMPARTILHAR RELATÓRIOS
 // APK / CAPACITOR
 // ===============================
 
@@ -47,7 +46,6 @@ function seedRelatorioPlataformaNativa() {
     );
 
 }
-
 
 function seedRelatorioArrayParaBase64(dados) {
 
@@ -79,21 +77,32 @@ function seedRelatorioArrayParaBase64(dados) {
 
 }
 
-
-async function seedRelatorioSalvarNativo(
+async function seedRelatorioSalvarECompartilhar(
     nomeArquivo,
     dadosBinarios
 ) {
 
     const capacitor = window.Capacitor;
+
     const filesystem =
         capacitor &&
         capacitor.Plugins &&
         capacitor.Plugins.Filesystem;
 
+    const share =
+        capacitor &&
+        capacitor.Plugins &&
+        capacitor.Plugins.Share;
+
     if (!filesystem) {
         throw new Error(
             "Plugin Filesystem não está disponível no APK."
+        );
+    }
+
+    if (!share) {
+        throw new Error(
+            "Plugin de compartilhamento não está disponível no APK."
         );
     }
 
@@ -102,37 +111,70 @@ async function seedRelatorioSalvarNativo(
             dadosBinarios
         );
 
-    const caminho =
+    const caminhoDocumentos =
         "SeedControl/Relatorios/" +
         nomeArquivo;
 
-    const resultado =
+    const salvo =
         await filesystem.writeFile({
-            path: caminho,
+            path: caminhoDocumentos,
             data: base64,
             directory: "DOCUMENTS",
             recursive: true
         });
 
-    if (!resultado || !resultado.uri) {
+    if (!salvo || !salvo.uri) {
         throw new Error(
             "O Android não confirmou o salvamento do relatório."
         );
     }
 
-    alert(
-        "Relatório salvo com sucesso!\n\n" +
-        "Arquivo: " + nomeArquivo +
-        "\nLocal: Documentos/SeedControl/Relatorios"
-    );
+    const caminhoCompartilhar =
+        "SeedControlShare/" +
+        nomeArquivo;
 
-    return resultado;
+    const temporario =
+        await filesystem.writeFile({
+            path: caminhoCompartilhar,
+            data: base64,
+            directory: "CACHE",
+            recursive: true
+        });
+
+    if (!temporario || !temporario.uri) {
+        throw new Error(
+            "Não foi possível preparar o arquivo para compartilhar."
+        );
+    }
+
+    const podeCompartilhar =
+        typeof share.canShare === "function"
+            ? await share.canShare()
+            : { value: true };
+
+    if (
+        podeCompartilhar &&
+        podeCompartilhar.value === false
+    ) {
+        throw new Error(
+            "Este aparelho não oferece compartilhamento de arquivos."
+        );
+    }
+
+    await share.share({
+        title: nomeArquivo,
+        text: "Relatório gerado pelo SeedControl",
+        files: [temporario.uri],
+        dialogTitle: "Compartilhar relatório"
+    });
+
+    return salvo;
 
 }
 '''
 
 marcador_pdf = "// ===============================\n// EXPORTAR PDF\n// ==============================="
-if "seedRelatorioSalvarNativo" not in js:
+if "seedRelatorioSalvarECompartilhar" not in js:
     if marcador_pdf not in js:
         raise SystemExit("Marcador de exportação PDF não encontrado.")
     js = js.replace(
@@ -163,7 +205,7 @@ salvar_pdf_novo = r'''    const nomeArquivoPDF =
             const dadosPDF =
                 pdf.output("arraybuffer");
 
-            await seedRelatorioSalvarNativo(
+            await seedRelatorioSalvarECompartilhar(
                 nomeArquivoPDF,
                 dadosPDF
             );
@@ -173,12 +215,12 @@ salvar_pdf_novo = r'''    const nomeArquivoPDF =
         } catch (erro) {
 
             console.error(
-                "Falha ao salvar PDF:",
+                "Falha ao exportar PDF:",
                 erro
             );
 
             alert(
-                "Não foi possível salvar o PDF.\n\n" +
+                "Não foi possível exportar o PDF. " +
                 (erro && erro.message
                     ? erro.message
                     : "Erro desconhecido.")
@@ -231,7 +273,7 @@ salvar_excel_novo = r'''    const nomeArquivoExcel =
                     }
                 );
 
-            await seedRelatorioSalvarNativo(
+            await seedRelatorioSalvarECompartilhar(
                 nomeArquivoExcel,
                 dadosExcel
             );
@@ -241,12 +283,12 @@ salvar_excel_novo = r'''    const nomeArquivoExcel =
         } catch (erro) {
 
             console.error(
-                "Falha ao salvar Excel:",
+                "Falha ao exportar Excel:",
                 erro
             );
 
             alert(
-                "Não foi possível salvar o Excel.\n\n" +
+                "Não foi possível exportar o Excel. " +
                 (erro && erro.message
                     ? erro.message
                     : "Erro desconhecido.")
@@ -274,7 +316,6 @@ js = js.replace(
 HTML.write_text(html, encoding="utf-8")
 JS.write_text(js, encoding="utf-8")
 
-# Validações objetivas do patch.
 html_final = HTML.read_text(encoding="utf-8")
 js_final = JS.read_text(encoding="utf-8")
 
@@ -285,10 +326,12 @@ validacoes = [
     ('async function exportarExcel()', js_final),
     ('SeedControl/Relatorios/', js_final),
     ('directory: "DOCUMENTS"', js_final),
+    ('directory: "CACHE"', js_final),
+    ('capacitor.Plugins.Share', js_final),
+    ('share.share({', js_final),
+    ('files: [temporario.uri]', js_final),
     ('pdf.output("arraybuffer")', js_final),
     ('type: "array"', js_final),
-    ('Não foi possível salvar o PDF.\\n\\n', js_final),
-    ('Não foi possível salvar o Excel.\\n\\n', js_final),
 ]
 
 for trecho, conteudo in validacoes:
@@ -298,5 +341,5 @@ for trecho, conteudo in validacoes:
         )
 
 print(
-    "Exportação PDF/Excel corrigida para APK: bibliotecas locais e salvamento em Documentos/SeedControl/Relatorios."
+    "Exportação PDF/Excel corrigida: salva em Documentos e abre compartilhamento nativo do Android."
 )
