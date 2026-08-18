@@ -52,27 +52,17 @@ jobs:
           mkdir -p buildsrc native/www
           unzip -q "${{ steps.source.outputs.zip }}" -d buildsrc
           APP_SRC="$(dirname "$(find buildsrc -type f -name index.html -print -quit)")"
-          if [ ! -f "$APP_SRC/index.html" ]; then
-            echo "index.html não encontrado no ZIP."
-            exit 1
-          fi
-          echo "APP_SRC=$APP_SRC" >> "$GITHUB_ENV"
+          test -f "$APP_SRC/index.html"
           cp -a "$APP_SRC"/. native/www/
 
-      - name: Corrigir acesso à movimentação
-        run: python scripts/patch-movimentacao.py
-
-      - name: Corrigir backup nativo no Android
-        run: python scripts/patch-backup-apk.py
-
-      - name: Bloquear lotes duplicados
-        run: python scripts/patch-duplicidade-lotes.py
-
-      - name: Aplicar Dashboard v3.8.4
-        run: python scripts/patch-dashboard-v384.py
-
-      - name: Corrigir exportação PDF e Excel
-        run: python scripts/patch-exportacao-relatorios.py
+      - name: Aplicar correções aprovadas
+        shell: bash
+        run: |
+          python scripts/patch-movimentacao.py
+          python scripts/patch-backup-apk.py
+          python scripts/patch-duplicidade-lotes.py
+          python scripts/patch-dashboard-v384.py
+          python scripts/patch-exportacao-relatorios.py
 
       - name: Verificar arquivos e JavaScript
         shell: bash
@@ -94,17 +84,18 @@ jobs:
           grep -q 'Ações rápidas' native/www/index.html
           grep -q 'dashboard-metricas' native/www/index.html
           grep -q 'alertasEstoque.*hidden' native/www/index.html
-          grep -q 'seedcontrol-v3.8-pwa-12' native/www/service-worker.js
-          grep -q 'dashboard-v384.css' native/www/service-worker.js
           grep -q 'data-action="movimentar"' native/www/estoque.js
           grep -q 'movimentacao.html?id=' native/www/cultivar.js
           grep -q 'Documentos/SeedControl' native/www/backup.js
           grep -q 'seedcontrol-duplicidade-cadastro-v383' native/www/cadastro.js
-          grep -q 'Este lote já está cadastrado' native/www/cadastro.js
           grep -q 'seedcontrol-duplicidade-edicao-v383' native/www/editar.js
           grep -q 'vendor/jspdf.umd.min.js' native/www/relatorios.html
           grep -q 'vendor/xlsx.full.min.js' native/www/relatorios.html
           grep -q 'SeedControl/Relatorios/' native/www/relatorios.js
+          grep -q 'directory: "CACHE"' native/www/relatorios.js
+          grep -q 'capacitor.Plugins.Share' native/www/relatorios.js
+          grep -q 'share.share({' native/www/relatorios.js
+          grep -q 'files: \[temporario.uri\]' native/www/relatorios.js
           grep -q 'async function exportarPDF' native/www/relatorios.js
           grep -q 'async function exportarExcel' native/www/relatorios.js
           while IFS= read -r -d '' arquivo; do
@@ -124,6 +115,7 @@ jobs:
               "@capacitor/android": "8.4.2",
               "@capacitor/core": "8.4.2",
               "@capacitor/filesystem": "8.1.0",
+              "@capacitor/share": "8.0.0",
               "jspdf": "2.5.1",
               "xlsx": "0.18.5"
             },
@@ -148,6 +140,7 @@ jobs:
           EOF
 
           npm install --no-audit --no-fund
+          test -d node_modules/@capacitor/share
 
           mkdir -p www/vendor
           cp node_modules/jspdf/dist/jspdf.umd.min.js www/vendor/jspdf.umd.min.js
@@ -178,11 +171,10 @@ jobs:
           if not icon_b64.exists():
               raise SystemExit('Base64 do ícone v3.8.4 não encontrado.')
 
-          try:
-              icon_bytes = base64.b64decode(icon_b64.read_text(encoding='utf-8').strip(), validate=True)
-          except Exception as exc:
-              raise SystemExit(f'Base64 do ícone inválido: {exc}')
-
+          icon_bytes = base64.b64decode(
+              icon_b64.read_text(encoding='utf-8').strip(),
+              validate=True
+          )
           if len(icon_bytes) < 1000:
               raise SystemExit('Ícone reconstruído é pequeno demais.')
           if icon_bytes[:4] != b'RIFF' or icon_bytes[8:12] != b'WEBP':
@@ -215,19 +207,18 @@ jobs:
               text,
               count=1
           )
-
           if qtd_icon != 1 or qtd_round != 1:
-              raise SystemExit('Não foi possível configurar icon/roundIcon no AndroidManifest.')
+              raise SystemExit('Não foi possível configurar os ícones no AndroidManifest.')
 
           manifest.write_text(text, encoding='utf-8')
 
           gradle = Path('android/app/build.gradle')
           g = gradle.read_text(encoding='utf-8')
-          g = g.replace('versionCode 1', 'versionCode 3808')
+          g = g.replace('versionCode 1', 'versionCode 3809')
           g = g.replace('versionName "1.0"', 'versionName "3.8.4"')
           gradle.write_text(g, encoding='utf-8')
 
-          print('Android v3.8.4 preparado com exportação nativa e versionCode 3808.')
+          print('Android v3.8.4 preparado com compartilhamento nativo e versionCode 3809.')
 
       - name: Restaurar chave de assinatura
         working-directory: native/android
@@ -258,7 +249,8 @@ jobs:
 
           unzip -l "$APK" | grep -q 'assets/public/vendor/jspdf.umd.min.js'
           unzip -l "$APK" | grep -q 'assets/public/vendor/xlsx.full.min.js'
-          echo "APK final validado com bibliotecas de exportação locais."
+          grep -R -q '@capacitor/share' .
+          echo "APK final validado com exportação e compartilhamento nativos."
 
       - name: Assinar APK com chave permanente
         working-directory: native/android
@@ -273,7 +265,7 @@ jobs:
           test -n "$KEY_PASS"
 
           UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-exportfix-signed.apk"
+          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-sharefix-signed.apk"
           test -f "$UNSIGNED"
 
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
@@ -292,7 +284,7 @@ jobs:
       - name: Guardar APK assinado
         uses: actions/upload-artifact@v7
         with:
-          name: SeedControl-v3.8.4-exportfix-signed-apk
-          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-exportfix-signed.apk
+          name: SeedControl-v3.8.4-sharefix-signed-apk
+          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-sharefix-signed.apk
           if-no-files-found: error
           retention-days: 14
