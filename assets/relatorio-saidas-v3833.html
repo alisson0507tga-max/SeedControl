@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#071713">
+<title>Relatório de Saídas - SeedControl</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="app-v384.css">
+<link rel="stylesheet" href="relatorio-saidas-v3833.css?v=3833">
+</head>
+<body class="seed-v384-page rel-saidas-body">
+<header class="rel-saidas-topo">
+<h1>📄 Relatório de Saídas</h1>
+<p>Movimentações de saída do estoque</p>
+</header>
+<main class="container rel-saidas-container">
+<section class="rel-painel">
+<h2>🔎 Filtros</h2>
+<label for="periodo">Período</label>
+<select id="periodo">
+<option value="hoje">Hoje</option>
+<option value="7dias">Últimos 7 dias</option>
+<option value="mes" selected>Mês atual</option>
+<option value="todos">Todo o histórico</option>
+<option value="personalizado">Período personalizado</option>
+</select>
+<div id="datasPersonalizadas" class="rel-grid-2" hidden>
+<div><label for="dataInicio">De</label><input id="dataInicio" type="date"></div>
+<div><label for="dataFim">Até</label><input id="dataFim" type="date"></div>
+</div>
+<div class="rel-grid-2">
+<div><label for="filtroCultivar">Cultivar</label><input id="filtroCultivar" type="text" placeholder="Ex.: Guepardo"></div>
+<div><label for="filtroLote">Lote</label><input id="filtroLote" type="text" placeholder="Ex.: 10"></div>
+</div>
+<label for="filtroDestino">Destino</label>
+<input id="filtroDestino" type="text" placeholder="Ex.: Fazenda Graciosa">
+<button id="aplicarFiltros" type="button">🔎 Aplicar filtros</button>
+</section>
+<section class="rel-resumo">
+<article><small>Saídas encontradas</small><strong id="totalSaidas">0</strong></article>
+<article><small>Total de Bags</small><strong id="totalBagsSaidas">0</strong></article>
+</section>
+<section class="rel-acoes">
+<button id="exportarPDF" type="button">📕 PDF</button>
+<button id="exportarExcel" type="button">📗 Excel</button>
+<button id="compartilharPDF" type="button">📤 Compartilhar</button>
+</section>
+<section>
+<div class="rel-lista-titulo"><h2>Saídas</h2><span id="periodoDescricao"></span></div>
+<div id="listaSaidas"></div>
+</section>
+<button type="button" class="rel-voltar" onclick="window.location.href='historico.html'">← Voltar ao Histórico</button>
+</main>
+<script src="database.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="vendor/xlsx-js-style.bundle.js"></script>
+<script src="relatorio-saidas-v3833.js?v=3833"></script>
+</body>
+</html>
