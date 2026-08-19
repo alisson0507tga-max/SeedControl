@@ -1,4 +1,4 @@
-name: Build SeedControl Busca Estoque APK
+name: Build SeedControl Busca Estoque Exata APK
 
 on:
   workflow_dispatch:
@@ -43,7 +43,7 @@ jobs:
           test -f "$APP_SRC/index.html"
           cp -a "$APP_SRC"/. native/www/
 
-      - name: Aplicar base completa e busca do Estoque
+      - name: Aplicar base completa e busca exata do Estoque
         shell: bash
         run: |
           python scripts/patch-movimentacao.py
@@ -70,7 +70,7 @@ jobs:
           python scripts/patch-ime-nativo-real-v384.py --web
           python scripts/patch-estoque-busca-v384.py
 
-      - name: Validar busca e IME web
+      - name: Validar busca exata e IME web
         shell: bash
         run: |
           test -f native/www/estoque.html
@@ -79,10 +79,12 @@ jobs:
           test -f native/www/cadastro.html
           test -f native/www/ime-nativo-real-v3827.js
 
-          grep -q 'estoque-busca-v384.js' native/www/estoque.html
+          grep -q 'estoque-busca-v384.js?v=3829' native/www/estoque.html
           grep -q 'seedcontrol-estoque-busca-funcional-v384' native/www/estoque-busca-v384.js
-          grep -q 'loteDoCard' native/www/estoque-busca-v384.js
-          grep -q 'Nenhum lote encontrado' native/www/estoque-busca-v384.js
+          grep -q 'seedcontrol-estoque-busca-exata-v3829' native/www/estoque-busca-v384.js
+          grep -q 'cultivarDoCard' native/www/estoque-busca-v384.js
+          grep -q 'correspondeNumeroExato' native/www/estoque-busca-v384.js
+          grep -q 'Nenhum resultado exato encontrado' native/www/estoque-busca-v384.js
           grep -q 'estoque-buscando' native/www/estoque-busca-v384.js
           grep -q 'NativeIme' native/www/ime-nativo-real-v3827.js
 
@@ -223,10 +225,10 @@ jobs:
 
           gradle = Path('android/app/build.gradle')
           g = gradle.read_text(encoding='utf-8')
-          g = g.replace('versionCode 1', 'versionCode 3828')
+          g = g.replace('versionCode 1', 'versionCode 3829')
           g = g.replace('versionName "1.0"', 'versionName "3.8.4"')
           gradle.write_text(g, encoding='utf-8')
-          print('SeedControl v3.8.4 Busca Estoque preparado com versionCode 3828.')
+          print('SeedControl v3.8.4 Busca Estoque Exata preparado com versionCode 3829.')
 
       - name: Restaurar chave de assinatura
         working-directory: native/android
@@ -260,15 +262,17 @@ jobs:
             'assets/public/ime-nativo-real-v3827.js' \
             -d "$TMP"
 
-          grep -q 'estoque-busca-v384.js' "$TMP/assets/public/estoque.html"
-          grep -q 'seedcontrol-estoque-busca-funcional-v384' "$TMP/assets/public/estoque-busca-v384.js"
-          grep -q 'Nenhum lote encontrado' "$TMP/assets/public/estoque-busca-v384.js"
+          grep -q 'estoque-busca-v384.js?v=3829' "$TMP/assets/public/estoque.html"
+          grep -q 'seedcontrol-estoque-busca-exata-v3829' "$TMP/assets/public/estoque-busca-v384.js"
+          grep -q 'cultivarDoCard' "$TMP/assets/public/estoque-busca-v384.js"
+          grep -q 'correspondeNumeroExato' "$TMP/assets/public/estoque-busca-v384.js"
+          grep -q 'Nenhum resultado exato encontrado' "$TMP/assets/public/estoque-busca-v384.js"
           grep -q 'NativeIme' "$TMP/assets/public/ime-nativo-real-v3827.js"
           grep -q 'android:windowSoftInputMode="adjustResize"' app/src/main/AndroidManifest.xml
 
           AAPT2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           "$AAPT2" dump badging "$APK" | grep -q "application:"
-          echo "APK validado: busca do Estoque funcional + IME nativo preservado."
+          echo "APK validado: busca numérica exata + IME nativo preservado."
 
       - name: Assinar APK
         working-directory: native/android
@@ -279,7 +283,7 @@ jobs:
           KEY_PASS: ${{ secrets.SEEDCONTROL_KEY_PASSWORD }}
         run: |
           UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-estoque-busca-signed.apk"
+          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-estoque-busca-exata-signed.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
 
           "$APKSIGNER" sign \
@@ -295,7 +299,7 @@ jobs:
       - name: Guardar APK assinado
         uses: actions/upload-artifact@v7
         with:
-          name: SeedControl-v3.8.4-estoque-busca-signed-apk
-          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-estoque-busca-signed.apk
+          name: SeedControl-v3.8.4-estoque-busca-exata-signed-apk
+          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-estoque-busca-exata-signed.apk
           if-no-files-found: error
           retention-days: 14
