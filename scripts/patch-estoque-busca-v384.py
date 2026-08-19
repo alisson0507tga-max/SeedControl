@@ -8,6 +8,7 @@ if not HTML.exists():
     raise SystemExit('estoque.html não encontrado.')
 
 js = r'''// seedcontrol-estoque-busca-funcional-v384
+// seedcontrol-estoque-busca-exata-v3829
 (function () {
     "use strict";
 
@@ -23,11 +24,38 @@ js = r'''// seedcontrol-estoque-busca-funcional-v384
         return normalizar(card.innerText || card.textContent || "");
     }
 
-    function loteDoCard(card) {
+    function valorPorRotulo(card, rotuloRegex) {
         const bruto = String(card.innerText || card.textContent || "");
-        const m = bruto.match(/(?:📋\s*)?Lote\s*:\s*([^\n\r]+)/i);
+        const re = new RegExp(rotuloRegex + "\\s*:\\s*([^\\n\\r]+)", "i");
+        const m = bruto.match(re);
         if (!m) return "";
         return normalizar(m[1]).replace(/\s+/g, " ").trim();
+    }
+
+    function loteDoCard(card) {
+        return valorPorRotulo(card, "(?:📋\\s*)?Lote");
+    }
+
+    function cultivarDoCard(card) {
+        const titulo = card.querySelector('h2');
+        if (!titulo) return "";
+        return normalizar(titulo.textContent || "")
+            .replace(/^[^a-z0-9]+/i, "")
+            .trim();
+    }
+
+    function camposNumericosPesquisaveis(card) {
+        return [
+            loteDoCard(card),
+            cultivarDoCard(card),
+            valorPorRotulo(card, "(?:🚜\\s*)?Fazenda"),
+            valorPorRotulo(card, "(?:📍\\s*)?Talh(?:a|ã)o"),
+            valorPorRotulo(card, "(?:🌾\\s*)?Peneira")
+        ].filter(Boolean);
+    }
+
+    function correspondeNumeroExato(card, termo) {
+        return camposNumericosPesquisaveis(card).some(valor => valor === termo);
     }
 
     function cards() {
@@ -130,13 +158,12 @@ js = r'''// seedcontrol-estoque-busca-funcional-v384
                 let correspondentes = [];
 
                 if (somenteNumero) {
-                    const exatos = todos.filter(card => loteDoCard(card) === termo);
-                    if (exatos.length) {
-                        correspondentes = exatos;
-                    } else {
-                        correspondentes = todos.filter(card => loteDoCard(card).includes(termo));
-                    }
+                    // Número puro é busca EXATA. Ex.: 11 nunca pode retornar 112.
+                    // São considerados os campos indicados na própria busca:
+                    // lote, cultivar, fazenda, talhão e peneira.
+                    correspondentes = todos.filter(card => correspondeNumeroExato(card, termo));
                 } else {
+                    // Texto continua flexível: pode localizar parte do nome/descrição.
                     correspondentes = todos.filter(card => textoDoCard(card).includes(termo));
                 }
 
@@ -152,12 +179,12 @@ js = r'''// seedcontrol-estoque-busca-funcional-v384
 
                 if (qtd === 0) {
                     status.textContent = somenteNumero
-                        ? `Nenhum lote encontrado para “${termoOriginal}”.`
+                        ? `Nenhum resultado exato encontrado para “${termoOriginal}”.`
                         : `Nenhum resultado encontrado para “${termoOriginal}”.`;
                 } else if (qtd === 1) {
-                    status.textContent = `1 lote encontrado para “${termoOriginal}”.`;
+                    status.textContent = `1 resultado encontrado para “${termoOriginal}”.`;
                 } else {
-                    status.textContent = `${qtd} lotes encontrados para “${termoOriginal}”.`;
+                    status.textContent = `${qtd} resultados encontrados para “${termoOriginal}”.`;
                 }
             } finally {
                 aplicando = false;
@@ -210,17 +237,26 @@ if 'estoque-busca-v384.js' not in html:
     alvo = '<script src="estoque.js"></script>'
     if alvo not in html:
         raise SystemExit('Não foi possível localizar estoque.js em estoque.html')
-    html = html.replace(alvo, alvo + '\n<script src="estoque-busca-v384.js?v=3828"></script>', 1)
-    HTML.write_text(html, encoding='utf-8')
+    html = html.replace(alvo, alvo + '\n<script src="estoque-busca-v384.js?v=3829"></script>', 1)
+else:
+    html = html.replace('estoque-busca-v384.js?v=3828', 'estoque-busca-v384.js?v=3829')
+HTML.write_text(html, encoding='utf-8')
 
 final_html = HTML.read_text(encoding='utf-8')
 final_js = JS.read_text(encoding='utf-8')
 
-for marca in ('seedcontrol-estoque-busca-funcional-v384', 'loteDoCard', 'estoque-buscando', 'Nenhum lote encontrado', 'stopImmediatePropagation'):
+for marca in (
+    'seedcontrol-estoque-busca-funcional-v384',
+    'seedcontrol-estoque-busca-exata-v3829',
+    'cultivarDoCard',
+    'correspondeNumeroExato',
+    'Nenhum resultado exato encontrado',
+    'stopImmediatePropagation'
+):
     if marca not in final_js:
         raise SystemExit(f'Marca ausente na busca nova: {marca}')
 
-if 'estoque-busca-v384.js' not in final_html:
-    raise SystemExit('Script da busca não foi injetado em estoque.html')
+if 'estoque-busca-v384.js?v=3829' not in final_html:
+    raise SystemExit('Script da busca 3829 não foi injetado em estoque.html')
 
-print('Busca do Estoque corrigida: número prioriza lote, resultados sobem para perto da lupa e status é exibido.')
+print('Busca do Estoque corrigida: número puro exige correspondência exata e não retorna prefixos como 112 para 11.')
