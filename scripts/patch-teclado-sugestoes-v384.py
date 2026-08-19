@@ -1,11 +1,10 @@
 from pathlib import Path
 
 ROOT = Path('native/www')
-CADASTRO = ROOT / 'cadastro.html'
 SCRIPT = ROOT / 'teclado-sugestoes-v384.js'
 
-if not CADASTRO.exists():
-    raise SystemExit('cadastro.html não encontrado.')
+if not ROOT.exists():
+    raise SystemExit('native/www não encontrado.')
 
 js = r'''// seedcontrol-teclado-sugestoes-v384
 (function () {
@@ -23,9 +22,19 @@ js = r'''// seedcontrol-teclado-sugestoes-v384
         campo.setAttribute("autocomplete", "on");
         campo.setAttribute("autocorrect", "on");
         campo.setAttribute("spellcheck", "true");
-        campo.setAttribute("autocapitalize", "words");
+        campo.setAttribute("autocapitalize", "sentences");
 
         if (campo.tagName === "INPUT" && (tipo === "text" || tipo === "search")) {
+            campo.setAttribute("inputmode", "text");
+        }
+
+        // No Assistente, reforça explicitamente o comportamento de texto normal
+        // para o Android/WebView oferecer a faixa de sugestões do teclado.
+        if (campo.id === "assistenteEntrada") {
+            campo.setAttribute("autocomplete", "on");
+            campo.setAttribute("autocorrect", "on");
+            campo.setAttribute("spellcheck", "true");
+            campo.setAttribute("autocapitalize", "sentences");
             campo.setAttribute("inputmode", "text");
         }
     }
@@ -55,23 +64,33 @@ js = r'''// seedcontrol-teclado-sugestoes-v384
 
 SCRIPT.write_text(js, encoding='utf-8')
 
-html = CADASTRO.read_text(encoding='utf-8')
-if 'teclado-sugestoes-v384.js' not in html:
+injetadas = 0
+for pagina in ROOT.glob('*.html'):
+    html = pagina.read_text(encoding='utf-8')
+    if 'teclado-sugestoes-v384.js' in html:
+        continue
     if '</body>' not in html:
-        raise SystemExit('Não foi possível localizar </body> em cadastro.html')
+        continue
     html = html.replace(
         '</body>',
-        '    <script src="teclado-sugestoes-v384.js?v=3822"></script>\n</body>',
+        '    <script src="teclado-sugestoes-v384.js?v=3823"></script>\n</body>',
         1
     )
-    CADASTRO.write_text(html, encoding='utf-8')
+    pagina.write_text(html, encoding='utf-8')
+    injetadas += 1
+
+cadastro = ROOT / 'cadastro.html'
+assistente = ROOT / 'assistente-chat-v384.html'
+
+for pagina in (cadastro, assistente):
+    if not pagina.exists():
+        raise SystemExit(f'Página obrigatória não encontrada: {pagina.name}')
+    if 'teclado-sugestoes-v384.js' not in pagina.read_text(encoding='utf-8'):
+        raise SystemExit(f'Script de sugestões não foi injetado em {pagina.name}')
 
 final = SCRIPT.read_text(encoding='utf-8')
-for marca in ('autocomplete', 'autocorrect', 'spellcheck', 'autocapitalize', 'inputmode'):
+for marca in ('autocomplete', 'autocorrect', 'spellcheck', 'autocapitalize', 'inputmode', 'assistenteEntrada'):
     if marca not in final:
         raise SystemExit(f'Marca ausente no teclado-sugestoes-v384.js: {marca}')
 
-if 'teclado-sugestoes-v384.js' not in CADASTRO.read_text(encoding='utf-8'):
-    raise SystemExit('Script de sugestões não foi injetado no cadastro.html')
-
-print('Sugestões/autocorreção do teclado habilitadas para campos textuais do Novo Lote.')
+print(f'Sugestões/autocorreção habilitadas em todas as telas textuais. HTMLs atualizados: {injetadas}.')
