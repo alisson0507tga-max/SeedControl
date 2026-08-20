@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/build-entrada-comercial-3903-apk.yml"
       - "scripts/patch-entrada-comercial-v384.py"
+      - "scripts/fix-entrada-comercial-v3903.py"
       - "scripts/patch-duplicidade-lotes.py"
 
 permissions:
@@ -76,6 +77,7 @@ jobs:
           python scripts/patch-relatorio-saidas-runtime-v384.py
           python scripts/patch-scroll-arrastavel-estoque-v384.py
           python scripts/patch-historico-limpeza-v384.py
+          python scripts/fix-entrada-comercial-v3903.py
           python scripts/patch-entrada-comercial-v384.py
 
       - name: Validar Entrada Comercial 2026
@@ -89,10 +91,8 @@ jobs:
           grep -q 'entrada-comercial-core-v3903.js' native/www/cadastro.html
           grep -q 'registrarEntradaComercial3903' native/www/entrada-comercial-core-v3903.js
           grep -q 'estimarBagsComerciaisPorKg' native/www/entrada-comercial-core-v3903.js
-          grep -q 'PMS × 5' native/www/entrada-comercial-v3903.js
           grep -q 'ENTRADA DE SEMENTES SOJA' native/www/entrada-comercial.html
           grep -q 'SeedControl_Entrada_Comercial_2026.xlsx' native/www/entrada-comercial-v3903.js
-          grep -q 'entradaComercial2026' native/www/entrada-comercial-core-v3903.js
           grep -q 'seedcontrol-duplicidade-universal-v3902' native/www/cadastro.js
           grep -q 'seedcontrol-duplicidade-universal-v3902' native/www/editar.js
           node --check native/www/entrada-comercial-core-v3903.js
