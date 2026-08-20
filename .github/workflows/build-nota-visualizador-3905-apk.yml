@@ -1,4 +1,4 @@
-name: Build SeedControl Nota Visualizador 3905 APK
+name: Build SeedControl Planilha Mobile 3906 APK
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     branches: ["v3.8.4-dev"]
     paths:
       - ".github/workflows/build-nota-visualizador-3905-apk.yml"
+      - "planilha-mobile-3906/**"
       - "scripts/patch-nota-visualizador-v384.py"
       - "assets/nota-visualizador-v3839.js"
       - "scripts/patch-entrada-comercial-limpa-v3904.py"
@@ -16,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-  build-3905:
+  build-3906:
     runs-on: ubuntu-latest
 
     steps:
@@ -47,7 +48,7 @@ jobs:
           test -f "$APP_SRC/index.html"
           cp -a "$APP_SRC"/. native/www/
 
-      - name: Aplicar base verde 3904 e visualizador da nota
+      - name: Aplicar base 3905 e correcao visual da Planilha
         shell: bash
         run: |
           python scripts/patch-movimentacao.py
@@ -81,8 +82,9 @@ jobs:
           python scripts/patch-historico-limpeza-v384.py
           python scripts/patch-entrada-comercial-limpa-v3904.py
           python scripts/patch-nota-visualizador-v384.py
+          python planilha-mobile-3906/patch.py
 
-      - name: Validar base 3904 e visualizador da nota
+      - name: Validar base 3905 e Planilha mobile 3906
         shell: bash
         run: |
           grep -q 'seedcontrol-duplicidade-universal-v3902' native/www/cadastro.js
@@ -105,8 +107,10 @@ jobs:
           grep -q 'notaEntradaFoto' native/www/nota-visualizador-v3839.js
           grep -q '📄 Ver nota' native/www/nota-visualizador-v3839.js
           grep -q 'Compartilhar' native/www/nota-visualizador-v3839.js
-          grep -q 'card-registro' native/www/nota-visualizador-v3839.js
-          grep -q 'estoque-registro' native/www/nota-visualizador-v3839.js
+
+          grep -q 'seedcontrol-planilha-mobile-v3906' native/www/planilha.html
+          grep -q 'seed-planilha-scroll-v3906' native/www/planilha.html
+          grep -q 'Deslize para os lados' native/www/planilha.html
 
           node --check native/www/cadastro.js
           node --check native/www/editar.js
@@ -173,7 +177,7 @@ jobs:
         run: |
           python scripts/patch-ime-nativo-real-v384.py --android
 
-      - name: Ajustar Android e versao 3905
+      - name: Ajustar Android e versao 3906
         working-directory: native
         shell: python
         run: |
@@ -212,7 +216,7 @@ jobs:
 
           gradle = Path('android/app/build.gradle')
           g = gradle.read_text(encoding='utf-8')
-          g = g.replace('versionCode 1', 'versionCode 3905')
+          g = g.replace('versionCode 1', 'versionCode 3906')
           g = g.replace('versionName "1.0"', 'versionName "3.8.4"')
           gradle.write_text(g, encoding='utf-8')
 
@@ -230,7 +234,7 @@ jobs:
         working-directory: native/android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Validar APK final 3905
+      - name: Validar APK final 3906
         working-directory: native/android
         shell: bash
         run: |
@@ -238,7 +242,7 @@ jobs:
           test -f "$APK"
           AAPT2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           "$AAPT2" dump badging "$APK" | grep -q "package: name='br.com.seedcontrol.app'"
-          "$AAPT2" dump badging "$APK" | grep -q "versionCode='3905'"
+          "$AAPT2" dump badging "$APK" | grep -q "versionCode='3906'"
           unzip -p "$APK" assets/public/cadastro.js | grep -q 'seedcontrol-duplicidade-universal-v3902'
           unzip -p "$APK" assets/public/editar.js | grep -q 'seedcontrol-duplicidade-universal-v3902'
           unzip -l "$APK" | grep -q 'assets/public/entrada-comercial.html'
@@ -248,7 +252,8 @@ jobs:
           unzip -l "$APK" | grep -q 'assets/public/nota-visualizador-v3839.js'
           unzip -p "$APK" assets/public/estoque.html | grep -q 'nota-visualizador-v3839.js?v=3839'
           unzip -p "$APK" assets/public/nota-visualizador-v3839.js | grep -q 'notaEntradaFoto'
-          unzip -p "$APK" assets/public/nota-visualizador-v3839.js | grep -q 'Ver nota'
+          unzip -p "$APK" assets/public/planilha.html | grep -q 'seedcontrol-planilha-mobile-v3906'
+          unzip -p "$APK" assets/public/planilha.html | grep -q 'seed-planilha-scroll-v3906'
 
       - name: Assinar APK
         working-directory: native/android
@@ -259,7 +264,7 @@ jobs:
           KEY_PASS: ${{ secrets.SEEDCONTROL_KEY_PASSWORD }}
         run: |
           UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-nota-visualizador-3905-signed.apk"
+          SIGNED="app/build/outputs/apk/release/SeedControl-v3.8.4-planilha-mobile-3906-signed.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           "$APKSIGNER" sign \
             --ks seedcontrol-release.jks \
@@ -273,7 +278,7 @@ jobs:
       - name: Guardar APK assinado
         uses: actions/upload-artifact@v7
         with:
-          name: SeedControl-v3.8.4-nota-visualizador-3905-signed-apk
-          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-nota-visualizador-3905-signed.apk
+          name: SeedControl-v3.8.4-planilha-mobile-3906-signed-apk
+          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.4-planilha-mobile-3906-signed.apk
           if-no-files-found: error
           retention-days: 14
