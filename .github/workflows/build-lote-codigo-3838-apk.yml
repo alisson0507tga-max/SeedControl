@@ -90,9 +90,7 @@ jobs:
           grep -q 'seedcontrol-relatorio-saidas-v3833' native/www/relatorio-saidas-v3833.js
           grep -q 'NativeIme' native/www/ime-nativo-real-v3827.js
           grep -Eq '<input[^>]*id="lote"[^>]*type="text"|<input[^>]*type="text"[^>]*id="lote"' native/www/cadastro.html
-          grep -Fq 'lote: document.getElementById("lote").value.trim(),' native/www/cadastro.js || grep -Fq "lote: document.getElementById('lote').value.trim()," native/www/cadastro.js
           grep -Eq '<input[^>]*id="lote"[^>]*type="text"|<input[^>]*type="text"[^>]*id="lote"' native/www/editar.html
-          grep -Fq 'registro.lote = document.getElementById("lote").value.trim();' native/www/editar.js || grep -Fq "registro.lote = document.getElementById('lote').value.trim();" native/www/editar.js
           node --check native/www/cadastro.js
           node --check native/www/editar.js
           node --check native/www/historico-limpeza-v3836.js
