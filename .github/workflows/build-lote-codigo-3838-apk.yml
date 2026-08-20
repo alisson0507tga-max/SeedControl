@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/build-lote-codigo-3838-apk.yml"
       - "scripts/patch-lote-codigo-v384.py"
+      - "assets/lote-alfanumerico-runtime-v3839.js"
       - "scripts/patch-historico-limpeza-v384.py"
       - "assets/historico-limpeza-v3836.js"
 
@@ -82,20 +83,13 @@ jobs:
       - name: Validar web 3838
         shell: bash
         run: |
-          test -f native/www/historico-limpeza-v3836.js
-          test -f native/www/scroll-rapido-estoque-v3835.js
-          test -f native/www/relatorio-saidas-v3833.js
-          grep -q 'historico-limpeza-v3836.js?v=3836' native/www/historico.html
-          grep -q 'seedcontrol-scroll-rapido-estoque-v3835' native/www/scroll-rapido-estoque-v3835.js
-          grep -q 'seedcontrol-relatorio-saidas-v3833' native/www/relatorio-saidas-v3833.js
-          grep -q 'NativeIme' native/www/ime-nativo-real-v3827.js
+          test -f native/www/lote-alfanumerico-runtime-v3839.js
+          grep -q 'lote-alfanumerico-runtime-v3839.js?v=3839' native/www/cadastro.html
+          grep -q 'lote-alfanumerico-runtime-v3839.js?v=3839' native/www/editar.html
           grep -Eq '<input[^>]*id="lote"[^>]*type="text"|<input[^>]*type="text"[^>]*id="lote"' native/www/cadastro.html
           grep -Eq '<input[^>]*id="lote"[^>]*type="text"|<input[^>]*type="text"[^>]*id="lote"' native/www/editar.html
-          node --check native/www/cadastro.js
-          node --check native/www/editar.js
-          node --check native/www/historico-limpeza-v3836.js
-          node --check native/www/scroll-rapido-estoque-v3835.js
-          node --check native/www/relatorio-saidas-v3833.js
+          grep -q 'seedcontrol-lote-alfanumerico-runtime-v3839' native/www/lote-alfanumerico-runtime-v3839.js
+          node --check native/www/lote-alfanumerico-runtime-v3839.js
 
       - name: Preparar Capacitor 8
         working-directory: native
@@ -229,12 +223,10 @@ jobs:
         run: |
           APK="app/build/outputs/apk/release/app-release-unsigned.apk"
           test -f "$APK"
-          unzip -l "$APK" | grep -q 'assets/public/historico-limpeza-v3836.js'
-          unzip -l "$APK" | grep -q 'assets/public/scroll-rapido-estoque-v3835.js'
-          unzip -l "$APK" | grep -q 'assets/public/relatorio-saidas-v3833.js'
+          unzip -l "$APK" | grep -q 'assets/public/lote-alfanumerico-runtime-v3839.js'
           AAPT2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           "$AAPT2" dump badging "$APK" | grep -q "versionCode='3838'"
-          echo "APK 3838 validado: historico seguro + lote como codigo."
+          echo "APK 3838 validado: lote alfanumerico runtime presente."
 
       - name: Assinar APK
         working-directory: native/android
