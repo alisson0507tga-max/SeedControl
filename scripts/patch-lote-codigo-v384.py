@@ -13,6 +13,8 @@ for obrigatorio in (CAD_HTML, CAD_JS):
     if not obrigatorio.exists():
         raise SystemExit(f'Arquivo obrigatorio ausente: {obrigatorio}')
 
+LOTE_EXPR = 'String(document.getElementById("lote").value || "").trim()'
+
 
 def tornar_input_texto(path: Path):
     if not path.exists():
@@ -30,11 +32,9 @@ def tornar_input_texto(path: Path):
     else:
         tag = tag[:-1] + ' type="text">'
 
-    # Remove restricoes tipicas de campo numerico.
     for atributo in ('min', 'max', 'step', 'pattern'):
         tag = re.sub(rf'\s+{atributo}=["\'][^"\']*["\']', '', tag, flags=re.I)
 
-    # Corrige/define inputmode.
     if re.search(r'\binputmode=["\'][^"\']+["\']', tag, flags=re.I):
         tag = re.sub(r'\binputmode=["\'][^"\']+["\']', 'inputmode="text"', tag, count=1, flags=re.I)
     else:
@@ -43,7 +43,6 @@ def tornar_input_texto(path: Path):
     if not re.search(r'\bautocapitalize=', tag, flags=re.I):
         tag = tag[:-1] + ' autocapitalize="characters">'
 
-    # Deixa a dica clara para lote comercial.
     if re.search(r'\bplaceholder=["\'][^"\']*["\']', tag, flags=re.I):
         tag = re.sub(
             r'\bplaceholder=["\'][^"\']*["\']',
@@ -53,55 +52,111 @@ def tornar_input_texto(path: Path):
             flags=re.I
         )
 
-    novo = texto[:m.start()] + tag + texto[m.end():]
-    path.write_text(novo, encoding='utf-8')
+    path.write_text(texto[:m.start()] + tag + texto[m.end():], encoding='utf-8')
+
+
+def substituir_conversoes_do_lote(texto: str):
+    alteracoes = 0
+
+    # Acesso direto ao input #lote.
+    padroes = [
+        r'Number\s*\(\s*document\.getElementById\(\s*["\']lote["\']\s*\)\.value\s*\)',
+        r'parseInt\s*\(\s*document\.getElementById\(\s*["\']lote["\']\s*\)\.value(?:\s*,\s*\d+)?\s*\)',
+        r'parseFloat\s*\(\s*document\.getElementById\(\s*["\']lote["\']\s*\)\.value\s*\)',
+        r'document\.getElementById\(\s*["\']lote["\']\s*\)\.valueAsNumber',
+        r'\+\s*document\.getElementById\(\s*["\']lote["\']\s*\)\.value\b',
+    ]
+
+    for padrao in padroes:
+        texto, n = re.subn(padrao, LOTE_EXPR, texto)
+        alteracoes += n
+
+    # Se o codigo guarda primeiro o elemento em uma variavel, cobre tambem esse formato.
+    variaveis = set(re.findall(
+        r'(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*document\.getElementById\(\s*["\']lote["\']\s*\)',
+        texto
+    ))
+
+    for var in variaveis:
+        v = re.escape(var)
+        padroes_var = [
+            rf'Number\s*\(\s*{v}\.value\s*\)',
+            rf'parseInt\s*\(\s*{v}\.value(?:\s*,\s*\d+)?\s*\)',
+            rf'parseFloat\s*\(\s*{v}\.value\s*\)',
+            rf'{v}\.valueAsNumber',
+            rf'\+\s*{v}\.value\b',
+        ]
+        for padrao in padroes_var:
+            texto, n = re.subn(padrao, f'String({var}.value || "").trim()', texto)
+            alteracoes += n
+
+    return texto, alteracoes, variaveis
 
 
 def tornar_lote_string(path: Path):
+    if not path.exists():
+        return set()
+
+    texto = path.read_text(encoding='utf-8')
+
+    # Guardas de duplicidade inseridas pelos patches anteriores.
+    texto = texto.replace(
+        'String(Number(lote && lote.lote) || "")',
+        'normalizar(lote && lote.lote)'
+    )
+    texto = texto.replace(
+        "String(Number(lote && lote.lote) || '')",
+        'normalizar(lote && lote.lote)'
+    )
+
+    # Compatibilidade com candidatos de duplicidade que liam o campo como Number.
+    texto = texto.replace(
+        'lote: Number(document.getElementById("lote")?.value),',
+        'lote: String(document.getElementById("lote")?.value || "").trim(),'
+    )
+    texto = texto.replace(
+        "lote: Number(document.getElementById('lote')?.value),",
+        "lote: String(document.getElementById('lote')?.value || '').trim(),"
+    )
+
+    texto, alteracoes, variaveis = substituir_conversoes_do_lote(texto)
+
+    # Validacoes numericas conhecidas passam a exigir somente codigo preenchido.
+    texto = texto.replace('novoLote.lote <= 0', '!String(novoLote.lote || "").trim()')
+    texto = texto.replace('registro.lote <= 0', '!String(registro.lote || "").trim()')
+
+    path.write_text(texto, encoding='utf-8')
+    print(f'{path.name}: {alteracoes} conversao(oes) numerica(s) do lote substituida(s).')
+    return variaveis
+
+
+def validar_sem_conversao_numerica(path: Path, variaveis):
     if not path.exists():
         return
 
     texto = path.read_text(encoding='utf-8')
 
-    # Cadastro/edicao principal.
-    substituicoes = {
-        'lote: Number(document.getElementById("lote").value),': 'lote: document.getElementById("lote").value.trim(),',
-        "lote: Number(document.getElementById('lote').value),": "lote: document.getElementById('lote').value.trim(),",
-        'registro.lote = Number(document.getElementById("lote").value);': 'registro.lote = document.getElementById("lote").value.trim();',
-        "registro.lote = Number(document.getElementById('lote').value);": "registro.lote = document.getElementById('lote').value.trim();",
+    diretos = [
+        r'Number\s*\(\s*document\.getElementById\(\s*["\']lote["\']',
+        r'parseInt\s*\(\s*document\.getElementById\(\s*["\']lote["\']',
+        r'parseFloat\s*\(\s*document\.getElementById\(\s*["\']lote["\']',
+        r'document\.getElementById\(\s*["\']lote["\']\s*\)\.valueAsNumber',
+    ]
 
-        # Guardas de duplicidade inseridas pelos patches anteriores.
-        'lote: Number(document.getElementById("lote")?.value),': 'lote: String(document.getElementById("lote")?.value || "").trim(),',
-        "lote: Number(document.getElementById('lote')?.value),": "lote: String(document.getElementById('lote')?.value || '').trim(),",
-        'String(Number(lote && lote.lote) || "")': 'normalizar(lote && lote.lote)',
-        "String(Number(lote && lote.lote) || '')": 'normalizar(lote && lote.lote)',
-    }
+    for padrao in diretos:
+        if re.search(padrao, texto):
+            raise SystemExit(f'Falha: ainda existe conversao numerica direta do Lote em {path.name}.')
 
-    for antigo, novo in substituicoes.items():
-        texto = texto.replace(antigo, novo)
-
-    # Validacao do cadastro: lote deixa de ser > 0 e passa a ser obrigatorio como texto.
-    texto = texto.replace('novoLote.lote <= 0', '!novoLote.lote')
-
-    # Cobre pequenas variacoes de espaco/formato.
-    texto = re.sub(
-        r'lote\s*:\s*Number\(document\.getElementById\(["\']lote["\']\)\.value\)',
-        'lote: document.getElementById("lote").value.trim()',
-        texto
-    )
-    texto = re.sub(
-        r'registro\.lote\s*=\s*Number\(document\.getElementById\(["\']lote["\']\)\.value\)\s*;',
-        'registro.lote = document.getElementById("lote").value.trim();',
-        texto
-    )
-
-    path.write_text(texto, encoding='utf-8')
+    for var in variaveis:
+        v = re.escape(var)
+        if re.search(rf'(?:Number|parseInt|parseFloat)\s*\(\s*{v}\.value|{v}\.valueAsNumber', texto):
+            raise SystemExit(f'Falha: ainda existe conversao numerica do Lote pela variavel {var} em {path.name}.')
 
 
 tornar_input_texto(CAD_HTML)
 tornar_input_texto(EDIT_HTML)
-tornar_lote_string(CAD_JS)
-tornar_lote_string(EDIT_JS)
+vars_cad = tornar_lote_string(CAD_JS)
+vars_edit = tornar_lote_string(EDIT_JS)
 
 # O modulo visual do cadastro tambem comparava lote como numero.
 if CAD_EXTRA.exists():
@@ -112,24 +167,21 @@ if CAD_EXTRA.exists():
     )
     CAD_EXTRA.write_text(texto, encoding='utf-8')
 
-# Validacao objetiva daquilo que o usuario precisa.
-cad_html = CAD_HTML.read_text(encoding='utf-8')
-cad_js = CAD_JS.read_text(encoding='utf-8')
+# Validacao objetiva: campo textual e nenhuma conversao numerica conhecida do #lote.
+for html_path in (CAD_HTML, EDIT_HTML):
+    if not html_path.exists():
+        continue
+    texto = html_path.read_text(encoding='utf-8')
+    m = re.search(r'<input\b[^>]*\bid=["\']lote["\'][^>]*>', texto, flags=re.I)
+    if not m or not re.search(r'\btype=["\']text["\']', m.group(0), flags=re.I):
+        raise SystemExit(f'Falha: campo Lote de {html_path.name} nao virou texto.')
 
-m = re.search(r'<input\b[^>]*\bid=["\']lote["\'][^>]*>', cad_html, flags=re.I)
-if not m or not re.search(r'\btype=["\']text["\']', m.group(0), flags=re.I):
-    raise SystemExit('Falha: campo Lote do cadastro nao virou texto.')
+validar_sem_conversao_numerica(CAD_JS, vars_cad)
+validar_sem_conversao_numerica(EDIT_JS, vars_edit)
 
-if 'lote: document.getElementById("lote").value.trim(),' not in cad_js and "lote: document.getElementById('lote').value.trim()," not in cad_js:
-    raise SystemExit('Falha: cadastro ainda nao salva Lote como texto.')
+if CAD_EXTRA.exists():
+    texto = CAD_EXTRA.read_text(encoding='utf-8')
+    if 'String(Number(item.lote)' in texto:
+        raise SystemExit('Falha: comparacao numerica de lote ainda existe em cadastro-v384.js.')
 
-if EDIT_HTML.exists() and EDIT_JS.exists():
-    edit_html = EDIT_HTML.read_text(encoding='utf-8')
-    edit_js = EDIT_JS.read_text(encoding='utf-8')
-    me = re.search(r'<input\b[^>]*\bid=["\']lote["\'][^>]*>', edit_html, flags=re.I)
-    if not me or not re.search(r'\btype=["\']text["\']', me.group(0), flags=re.I):
-        raise SystemExit('Falha: campo Lote da edicao nao virou texto.')
-    if 'registro.lote = document.getElementById("lote").value.trim();' not in edit_js and "registro.lote = document.getElementById('lote').value.trim();" not in edit_js:
-        raise SystemExit('Falha: edicao ainda nao salva Lote como texto.')
-
-print('Lote como codigo preparado: aceita numeros e letras sem converter para Number.')
+print('Lote como codigo preparado: aceita letras e numeros sem depender do formato interno do cadastro.')
