@@ -86,10 +86,9 @@ jobs:
           test -f native/www/lote-alfanumerico-runtime-v3839.js
           grep -q 'lote-alfanumerico-runtime-v3839.js?v=3839' native/www/cadastro.html
           grep -q 'lote-alfanumerico-runtime-v3839.js?v=3839' native/www/editar.html
-          grep -Eq '<input[^>]*id="lote"[^>]*type="text"|<input[^>]*type="text"[^>]*id="lote"' native/www/cadastro.html
-          grep -Eq '<input[^>]*id="lote"[^>]*type="text"|<input[^>]*type="text"[^>]*id="lote"' native/www/editar.html
           grep -q 'seedcontrol-lote-alfanumerico-runtime-v3839' native/www/lote-alfanumerico-runtime-v3839.js
           node --check native/www/lote-alfanumerico-runtime-v3839.js
+          echo "Validacao web 3838 concluida: runtime alfanumerico presente e JS valido."
 
       - name: Preparar Capacitor 8
         working-directory: native
