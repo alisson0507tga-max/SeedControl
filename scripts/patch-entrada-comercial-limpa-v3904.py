@@ -28,7 +28,8 @@ for nome in arquivos:
     shutil.copy2(SRC / nome, DST / nome)
 
 cadastro = CADASTRO.read_text(encoding="utf-8")
-script_core = '<script src="entrada-comercial-core-v3904.js?v=3904"></script>'
+marcador_cadastro = "registrarEntradaComercial3904"
+script_core = f'<!-- {marcador_cadastro} -->\n<script src="entrada-comercial-core-v3904.js?v=3904"></script>'
 if "entrada-comercial-core-v3904.js" not in cadastro:
     if "</body>" in cadastro:
         cadastro = cadastro.replace("</body>", f"    {script_core}\n</body>", 1)
@@ -67,6 +68,8 @@ cad_final = CADASTRO.read_text(encoding="utf-8")
 plan_final = PLANILHA.read_text(encoding="utf-8")
 if "entrada-comercial-core-v3904.js" not in cad_final:
     raise SystemExit("Core 3904 não entrou no cadastro.html")
+if marcador_cadastro not in cad_final:
+    raise SystemExit("Marcador de integração comercial 3904 não entrou no cadastro.html")
 if marcador not in plan_final or "entrada-comercial.html?v=3904" not in plan_final:
     raise SystemExit("Atalho 3904 não entrou em planilha.html")
 
