@@ -32,7 +32,7 @@ padrao_injetar = re.compile(
     r'def injetar_core\(path: Path\):.*?injetar_core\(BACKUP_HTML\)\n',
     re.S,
 )
-texto, qtd1 = padrao_injetar.subn(novo_injetar, texto, count=1)
+texto, qtd1 = padrao_injetar.subn(lambda _: novo_injetar, texto, count=1)
 if qtd1 != 1:
     raise SystemExit('Não foi possível substituir injetar_core() no patch comercial')
 
@@ -67,7 +67,7 @@ padrao_planilha = re.compile(
     r'planilha = PLANILHA_HTML\.read_text\(encoding="utf-8"\).*?PLANILHA_HTML\.write_text\(planilha, encoding="utf-8"\)\n\n',
     re.S,
 )
-texto, qtd2 = padrao_planilha.subn(novo_planilha, texto, count=1)
+texto, qtd2 = padrao_planilha.subn(lambda _: novo_planilha, texto, count=1)
 if qtd2 != 1:
     raise SystemExit('Não foi possível substituir o bloco de atalho da Planilha')
 
