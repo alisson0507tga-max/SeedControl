@@ -37,31 +37,31 @@ if qtd1 != 1:
     raise SystemExit('Não foi possível substituir injetar_core() no patch comercial')
 
 # 2) Torna o atalho da tela Planilhas independente de <div class="container"> exato.
-novo_planilha = r'''planilha = PLANILHA_HTML.read_text(encoding="utf-8")
-if "entrada-comercial.html?v=3903" not in planilha:
-    bloco = '''<div class="card entrada-comercial-atalho-v3903" style="border:1px solid rgba(74,222,128,.28);background:linear-gradient(145deg,rgba(9,48,37,.78),rgba(7,27,35,.92));margin:14px 0;padding:16px;border-radius:16px">
+novo_planilha = r"""planilha = PLANILHA_HTML.read_text(encoding=\"utf-8\")
+if \"entrada-comercial.html?v=3903\" not in planilha:
+    bloco = '''<div class=\"card entrada-comercial-atalho-v3903\" style=\"border:1px solid rgba(74,222,128,.28);background:linear-gradient(145deg,rgba(9,48,37,.78),rgba(7,27,35,.92));margin:14px 0;padding:16px;border-radius:16px\">
 <h2>📥 Entrada Comercial de Sementes</h2>
-<p style="color:#aebdc2">Recebimentos de sementes de fora, com estimativa comercial baseada no PMS.</p>
-<button type="button" onclick="window.location.href='entrada-comercial.html?v=3903'">Abrir Entrada Comercial 2026</button>
+<p style=\"color:#aebdc2\">Recebimentos de sementes de fora, com estimativa comercial baseada no PMS.</p>
+<button type=\"button\" onclick=\"window.location.href='entrada-comercial.html?v=3903'\">Abrir Entrada Comercial 2026</button>
 </div>'''
 
     padrao_container = re.compile(
-        r'<(?:div|main|section)\b[^>]*class=["\'][^"\']*\bcontainer\b[^"\']*["\'][^>]*>',
+        r'<(?:div|main|section)\\b[^>]*class=[\"\\\'][^\"\\\']*\\bcontainer\\b[^\"\\\']*[\"\\\'][^>]*>',
         re.I,
     )
     achou = padrao_container.search(planilha)
 
     if achou:
         pos = achou.end()
-        planilha = planilha[:pos] + '\n' + bloco + '\n' + planilha[pos:]
-    elif re.search(r'</body\s*>', planilha, re.I):
-        planilha = re.sub(r'</body\s*>', bloco + '\n</body>', planilha, count=1, flags=re.I)
+        planilha = planilha[:pos] + '\\n' + bloco + '\\n' + planilha[pos:]
+    elif re.search(r'</body\\s*>', planilha, re.I):
+        planilha = re.sub(r'</body\\s*>', bloco + '\\n</body>', planilha, count=1, flags=re.I)
     else:
-        planilha += '\n' + bloco + '\n'
+        planilha += '\\n' + bloco + '\\n'
 
-    PLANILHA_HTML.write_text(planilha, encoding="utf-8")
+    PLANILHA_HTML.write_text(planilha, encoding=\"utf-8\")
 
-'''
+"""
 
 padrao_planilha = re.compile(
     r'planilha = PLANILHA_HTML\.read_text\(encoding="utf-8"\).*?PLANILHA_HTML\.write_text\(planilha, encoding="utf-8"\)\n\n',
@@ -74,8 +74,6 @@ if qtd2 != 1:
 PATCH.write_text(texto, encoding='utf-8')
 
 # Valida o próprio patch depois da correção.
-compilado = compile(texto, str(PATCH), 'exec')
-if compilado is None:
-    raise SystemExit('Falha ao compilar patch comercial corrigido')
+compile(texto, str(PATCH), 'exec')
 
 print('Patch Entrada Comercial corrigido: injeções tolerantes ao HTML atual.')
