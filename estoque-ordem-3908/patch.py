@@ -27,7 +27,8 @@ for pagina in PAGINAS:
             html += "\n" + tag + "\n"
         pagina.write_text(html, encoding="utf-8")
 
-final_js = DST.read_text(encoding="utf-8")n
+final_js = DST.read_text(encoding="utf-8")
+
 for marca in (
     "seedcontrol-estoque-ordem-recente-v3908",
     "dataCadastro",
