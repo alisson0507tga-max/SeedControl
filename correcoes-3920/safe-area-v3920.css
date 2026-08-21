@@ -1,0 +1,27 @@
+/* SeedControl 3920 - respiro visual dentro da area segura nativa */
+html {
+  scroll-padding-top: 12px;
+  scroll-padding-bottom: 28px;
+}
+
+body {
+  box-sizing: border-box;
+  padding-top: 6px !important;
+  padding-bottom: 18px !important;
+}
+
+/* Evita que o ultimo bloco/botao termine colado na navegacao do Android. */
+body::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 12px;
+  pointer-events: none;
+}
+
+/* Elementos fixos no rodape ganham um pequeno respiro extra. */
+.seed-safe-bottom-v3920,
+[style*="position: fixed"][style*="bottom: 0"],
+[style*="position:fixed"][style*="bottom:0"] {
+  margin-bottom: 6px;
+}
