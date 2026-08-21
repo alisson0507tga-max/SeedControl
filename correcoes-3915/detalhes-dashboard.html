@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#071713">
+  <title>Detalhes do Estoque - SeedControl</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="app-v384.css">
+  <link rel="stylesheet" href="detalhes-dashboard-v3915.css">
+</head>
+<body class="seed-det-body">
+  <header class="seed-det-topo">
+    <button id="seedDetVoltarTopo" class="seed-det-voltar-topo" type="button" aria-label="Voltar">←</button>
+    <div>
+      <h1 id="seedDetTitulo">Detalhes do Estoque</h1>
+      <p id="seedDetSubtitulo">Veja de onde vêm os números do Dashboard</p>
+    </div>
+  </header>
+
+  <main class="seed-det-container">
+    <section class="seed-det-resumo" aria-label="Resumo">
+      <div><small>Bags</small><strong id="seedDetBags">0</strong></div>
+      <div><small>Kg</small><strong id="seedDetKg">0 kg</strong></div>
+      <div><small>Lotes</small><strong id="seedDetLotes">0</strong></div>
+    </section>
+
+    <section class="seed-det-pesquisa">
+      <label for="seedDetBusca">Buscar nesta lista</label>
+      <input id="seedDetBusca" type="text" placeholder="Cultivar, lote, fazenda ou talhão..." autocomplete="on" autocorrect="on" spellcheck="true">
+    </section>
+
+    <section class="seed-det-cabecalho-lista">
+      <h2 id="seedDetListaTitulo">Detalhamento</h2>
+      <span id="seedDetContagem">0 itens</span>
+    </section>
+
+    <section id="seedDetLista" class="seed-det-lista" aria-live="polite"></section>
+
+    <button id="seedDetVoltar" class="seed-det-voltar" type="button">← Voltar ao Início</button>
+  </main>
+
+  <script src="detalhes-dashboard-v3915.js?v=3915"></script>
+</body>
+</html>
