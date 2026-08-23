@@ -32,7 +32,8 @@ if SW.exists():
     sw = re.sub(r"seedcontrol-v3\.8-pwa-\d+", "seedcontrol-v3.8-pwa-3922", sw, count=1)
     SW.write_text(sw, encoding="utf-8")
 
-final = HTML.read_text(encoding="utf-8")n = final.find("entrada-comercial-lote-v3922.js")
+final = HTML.read_text(encoding="utf-8")
+n = final.find("entrada-comercial-lote-v3922.js")
 core = final.find("entrada-comercial-core-v3904.js")
 ui = final.find("entrada-comercial-v3904.js")
 
