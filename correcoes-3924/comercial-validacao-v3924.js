@@ -4,6 +4,7 @@
 
   const MARCADOR = "__SEEDCONTROL_NAO_APLICA_COMERCIAL_3924__";
   const IDS = ["fazenda", "talhao", "talhão", "secagem", "situacaoSecagem", "situacao-secagem", "statusSecagem"];
+  const estadoCampos = new Map();
   let temporarios = [];
 
   function texto(v) {
@@ -61,6 +62,44 @@
     });
 
     return Array.from(set);
+  }
+
+  function acharContainer(el) {
+    const label = el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
+    return el.closest(".form-group,.campo,.field,.form-field,.input-group,.input-field,.campo-form") ||
+      (label && label.parentElement) ||
+      el.parentElement;
+  }
+
+  function aplicarVisualComercial() {
+    const comercial = ehComercial();
+
+    coletarCampos().forEach(el => {
+      if (!estadoCampos.has(el)) {
+        const container = acharContainer(el);
+        estadoCampos.set(el, {
+          required: el.required,
+          ariaRequired: el.getAttribute("aria-required"),
+          container,
+          display: container ? container.style.display : ""
+        });
+      }
+
+      const estado = estadoCampos.get(el);
+      if (comercial) {
+        el.required = false;
+        el.removeAttribute("required");
+        el.setAttribute("aria-required", "false");
+        if (estado.container) estado.container.style.display = "none";
+      } else {
+        el.required = !!estado.required;
+        if (estado.required) el.setAttribute("required", "");
+        else el.removeAttribute("required");
+        if (estado.ariaRequired == null) el.removeAttribute("aria-required");
+        else el.setAttribute("aria-required", estado.ariaRequired);
+        if (estado.container) estado.container.style.display = estado.display;
+      }
+    });
   }
 
   function restaurarCamposTemporarios() {
@@ -142,6 +181,9 @@
 
   function iniciar() {
     protegerPersistencia();
+    aplicarVisualComercial();
+    const elMetodo = metodo();
+    if (elMetodo) elMetodo.addEventListener("change", aplicarVisualComercial);
     document.addEventListener("click", prepararAntesDeSalvar, true);
     window.addEventListener("pagehide", restaurarCamposTemporarios);
     window.seedControlEhComercial3924 = ehComercial;
