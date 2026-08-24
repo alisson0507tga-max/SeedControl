@@ -1,0 +1,86 @@
+name: SeedControl Diagnostico Build 3928B
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["v3.8.4-dev"]
+    paths:
+      - ".github/workflows/diagnostico-build-3928b.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        id: checkout
+        continue-on-error: true
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        id: node
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Java 21
+        id: java
+        continue-on-error: true
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validar arquivos da build
+        id: validar
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -e
+          test -f correcoes-3926/patch.py
+          test -f correcoes-3922/patch.py
+          test -f correcoes-3922/entrada-comercial-lote-v3922.js
+          test -f assets/seedcontrol-icon-94-3924.webp.b64
+          python -m py_compile correcoes-3926/patch.py correcoes-3922/patch.py
+          node --check correcoes-3922/entrada-comercial-lote-v3922.js
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+          d=base64.b64decode(Path('assets/seedcontrol-icon-94-3924.webp.b64').read_text().strip(), validate=True)
+          assert d.startswith(b'RIFF') and d[8:12] == b'WEBP'
+          print('icone-webp-ok', len(d))
+          PY
+
+      - name: Gravar resultado do diagnostico
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          CHECKOUT_RESULT: ${{ steps.checkout.outcome }}
+          NODE_RESULT: ${{ steps.node.outcome }}
+          JAVA_RESULT: ${{ steps.java.outcome }}
+          VALIDAR_RESULT: ${{ steps.validar.outcome }}
+        run: |
+          set -euo pipefail
+          TXT="commit=$SHA
+checkout=$CHECKOUT_RESULT
+node=$NODE_RESULT
+java=$JAVA_RESULT
+validacao=$VALIDAR_RESULT
+"
+          CONTENT="$(printf '%b' "$TXT" | base64 -w0)"
+          python - "$CONTENT" <<'PY' > /tmp/payload.json
+          import json,sys
+          print(json.dumps({"message":"Registrar diagnostico build 3928B","content":sys.argv[1],"branch":"v3.8.4-dev"}))
+          PY
+          curl --fail-with-body -sS -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/contents/diagnostics/build-3928b.txt" \
+            --data-binary @/tmp/payload.json
