@@ -1,0 +1,4 @@
+status=FAIL
+commit=23b4be639e47a39992900e586b137596217f7d4f
+stage=icone-base64-png-sha
+code=1
