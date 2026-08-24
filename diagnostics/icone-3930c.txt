@@ -1,0 +1,4 @@
+status=FAIL
+commit=d14a4f805b141c70109afdcc097621ee939870a3
+stage=base64-png-sha
+code=1
