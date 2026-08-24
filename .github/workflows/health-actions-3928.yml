@@ -1,0 +1,45 @@
+name: SeedControl Actions Health 3928
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["v3.8.4-dev"]
+    paths:
+      - ".github/workflows/health-actions-3928.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  health-3928:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirmar runner e gravar marcador
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "runner_ok=true"
+          echo "sha=$SHA"
+          python --version
+          node --version || true
+          java -version || true
+          CONTENT="$(printf 'SeedControl Actions OK\ncommit=%s\nrunner=%s\n' "$SHA" "$RUNNER_OS" | base64 -w0)"
+          python - "$CONTENT" <<'PY' > /tmp/payload.json
+          import json, sys
+          print(json.dumps({
+              "message": "Registrar health check Actions 3928",
+              "content": sys.argv[1],
+              "branch": "v3.8.4-dev"
+          }))
+          PY
+          curl --fail-with-body -sS \
+            -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/contents/diagnostics/actions-health-3928.txt" \
+            --data-binary @/tmp/payload.json
