@@ -1,0 +1,93 @@
+name: SeedControl Diagnostico Fontes 3930B
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["v3.8.4-dev"]
+    paths:
+      - ".github/workflows/diagnostico-fontes-3930b.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fontes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diagnosticar fontes com marcador de falha
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          STAGE="inicio"
+          falhar() {
+            CODE=$?
+            trap - ERR
+            CONTENT="$(printf 'status=FAIL\ncommit=%s\nstage=%s\ncode=%s\n' "$SHA" "$STAGE" "$CODE" | base64 -w0)"
+            python - "$CONTENT" <<'PY' > /tmp/fail.json
+          import json,sys
+          print(json.dumps({"message":"Registrar falha diagnostico 3930B","content":sys.argv[1],"branch":"v3.8.4-dev"}))
+          PY
+            curl -sS -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPO/contents/diagnostics/fontes-3930b.txt" \
+              --data-binary @/tmp/fail.json >/dev/null || true
+            exit "$CODE"
+          }
+          trap falhar ERR
+
+          STAGE="checkout-manual"
+          rm -rf repo
+          mkdir repo
+          cd repo
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git fetch -q --depth=1 origin "$SHA"
+          git checkout -q --detach FETCH_HEAD
+
+          STAGE="arquivos-existem"
+          test -f correcoes-3926/patch.py
+          test -f correcoes-3922/patch.py
+          test -f correcoes-3922/entrada-comercial-lote-v3922.js
+          test -f assets/seedcontrol-icon-94-original-256.png.b64
+
+          STAGE="python-compile"
+          python -m py_compile correcoes-3918/patch.py correcoes-3919/patch.py correcoes-3920/patch.py correcoes-3922/patch.py correcoes-3926/patch.py
+
+          STAGE="js-3918"
+          node --check correcoes-3918/dashboard-comerciais-v3918.js
+          STAGE="js-3919"
+          node --check correcoes-3919/fazendas-contagem-v3919.js
+          STAGE="js-3922"
+          node --check correcoes-3922/entrada-comercial-lote-v3922.js
+
+          STAGE="icone-base64-png-sha"
+          python - <<'PY'
+          from pathlib import Path
+          import base64, hashlib
+          d=base64.b64decode(Path('assets/seedcontrol-icon-94-original-256.png.b64').read_text().strip(), validate=True)
+          assert d.startswith(b'\x89PNG\r\n\x1a\n')
+          sha=hashlib.sha256(d).hexdigest()
+          assert sha=='79b8b15e490ee9d0c1ec633a09bba8546c64b029b361611a80b8452cb29219f1', sha
+          print(len(d),sha)
+          PY
+
+          STAGE="marcador-sucesso"
+          cd ..
+          trap - ERR
+          CONTENT="$(printf 'status=SUCCESS\ncommit=%s\nstage=all-ok\n' "$SHA" | base64 -w0)"
+          python - "$CONTENT" <<'PY' > /tmp/ok.json
+          import json,sys
+          print(json.dumps({"message":"Registrar sucesso diagnostico 3930B","content":sys.argv[1],"branch":"v3.8.4-dev"}))
+          PY
+          curl --fail-with-body -sS -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/contents/diagnostics/fontes-3930b.txt" \
+            --data-binary @/tmp/ok.json
