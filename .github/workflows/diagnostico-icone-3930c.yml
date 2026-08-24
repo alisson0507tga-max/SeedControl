@@ -1,0 +1,67 @@
+name: SeedControl Diagnostico Icone 3930C
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["v3.8.4-dev"]
+    paths:
+      - ".github/workflows/diagnostico-icone-3930c.yml"
+      - "assets/seedcontrol-icon-94-original-192.png.b64"
+
+permissions:
+  contents: write
+
+jobs:
+  validar-icone:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar icone 94 192 sem actions externas
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          STAGE="checkout"
+          registrar() {
+            STATUS="$1"; CODE="$2"
+            CONTENT="$(printf 'status=%s\ncommit=%s\nstage=%s\ncode=%s\n' "$STATUS" "$SHA" "$STAGE" "$CODE" | base64 -w0)"
+            python - "$CONTENT" <<'PY' > /tmp/payload.json
+          import json,sys
+          print(json.dumps({"message":"Registrar diagnostico icone 3930C","content":sys.argv[1],"branch":"v3.8.4-dev"}))
+          PY
+            curl -sS -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPO/contents/diagnostics/icone-3930c.txt" \
+              --data-binary @/tmp/payload.json >/dev/null
+          }
+          falhar(){ CODE=$?; trap - ERR; registrar FAIL "$CODE" || true; exit "$CODE"; }
+          trap falhar ERR
+
+          rm -rf repo && mkdir repo && cd repo
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git fetch -q --depth=1 origin "$SHA"
+          git checkout -q --detach FETCH_HEAD
+
+          STAGE="arquivo"
+          test -s assets/seedcontrol-icon-94-original-192.png.b64
+
+          STAGE="base64-png-sha"
+          python - <<'PY'
+          from pathlib import Path
+          import base64, hashlib
+          d=base64.b64decode(Path('assets/seedcontrol-icon-94-original-192.png.b64').read_text(encoding='utf-8').strip(), validate=True)
+          assert d.startswith(b'\x89PNG\r\n\x1a\n'), d[:16]
+          sha=hashlib.sha256(d).hexdigest()
+          assert sha == '3fd326d2ccb79af6cb3458bfb103a1eddb317f5c50d7fbe27a9be166be3eb798', sha
+          print('icone-ok',len(d),sha)
+          PY
+
+          STAGE="sucesso"
+          cd ..
+          trap - ERR
+          registrar SUCCESS 0
