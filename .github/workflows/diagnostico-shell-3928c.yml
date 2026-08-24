@@ -1,0 +1,50 @@
+name: SeedControl Diagnostico Shell 3928C
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["v3.8.4-dev"]
+    paths:
+      - ".github/workflows/diagnostico-shell-3928c.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  shell-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diagnosticar sem actions externas
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          NODEV="$(node --version 2>&1 || true)"
+          JAVAV="$(java -version 2>&1 | head -n 1 || true)"
+          JAVA21="${JAVA_HOME_21_X64:-}"
+          rm -rf repo
+          mkdir repo
+          cd repo
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git fetch -q --depth=1 origin "$SHA"
+          git checkout -q --detach FETCH_HEAD
+          TESTS="ok"
+          test -f correcoes-3926/patch.py || TESTS="falha-3926"
+          test -f correcoes-3922/patch.py || TESTS="falha-3922"
+          test -f SeedControl*.zip || TESTS="falha-zip"
+          cd ..
+          CONTENT="$(printf 'commit=%s\nnode=%s\njava=%s\njava21=%s\ncheckout_manual=ok\narquivos=%s\n' "$SHA" "$NODEV" "$JAVAV" "$JAVA21" "$TESTS" | base64 -w0)"
+          python - "$CONTENT" <<'PY' > /tmp/payload.json
+          import json,sys
+          print(json.dumps({"message":"Registrar diagnostico shell 3928C","content":sys.argv[1],"branch":"v3.8.4-dev"}))
+          PY
+          curl --fail-with-body -sS -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/contents/diagnostics/shell-3928c.txt" \
+            --data-binary @/tmp/payload.json
