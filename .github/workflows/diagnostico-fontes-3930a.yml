@@ -1,0 +1,60 @@
+name: SeedControl Diagnostico Fontes 3930A
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["v3.8.4-dev"]
+    paths:
+      - ".github/workflows/diagnostico-fontes-3930a.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fontes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar checkout, icone e patches
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          rm -rf repo
+          mkdir repo
+          cd repo
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git fetch -q --depth=1 origin "$SHA"
+          git checkout -q --detach FETCH_HEAD
+          test -f correcoes-3926/patch.py
+          test -f correcoes-3922/patch.py
+          test -f correcoes-3922/entrada-comercial-lote-v3922.js
+          test -f assets/seedcontrol-icon-94-original-256.png.b64
+          python -m py_compile correcoes-3918/patch.py correcoes-3919/patch.py correcoes-3920/patch.py correcoes-3922/patch.py correcoes-3926/patch.py
+          node --check correcoes-3918/dashboard-comerciais-v3918.js
+          node --check correcoes-3919/fazendas-contagem-v3919.js
+          node --check correcoes-3922/entrada-comercial-lote-v3922.js
+          python - <<'PY'
+          from pathlib import Path
+          import base64, hashlib
+          d=base64.b64decode(Path('assets/seedcontrol-icon-94-original-256.png.b64').read_text().strip(), validate=True)
+          assert d.startswith(b'\x89PNG\r\n\x1a\n')
+          sha=hashlib.sha256(d).hexdigest()
+          assert sha=='79b8b15e490ee9d0c1ec633a09bba8546c64b029b361611a80b8452cb29219f1', sha
+          print('OK',len(d),sha)
+          PY
+          cd ..
+          CONTENT="$(printf 'status=SUCCESS\ncommit=%s\nfontes=ok\n' "$SHA" | base64 -w0)"
+          python - "$CONTENT" <<'PY' > /tmp/payload.json
+          import json,sys
+          print(json.dumps({"message":"Registrar diagnostico fontes 3930A","content":sys.argv[1],"branch":"v3.8.4-dev"}))
+          PY
+          curl --fail-with-body -sS -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/contents/diagnostics/fontes-3930a.txt" \
+            --data-binary @/tmp/payload.json
