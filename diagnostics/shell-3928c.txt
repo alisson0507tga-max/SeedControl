@@ -1,0 +1,6 @@
+commit=9f2e15eb058fbbf28336b57a315b60f8fa0259f3
+node=v22.23.2
+java=openjdk version "17.0.20" 2026-07-21
+java21=/usr/lib/jvm/temurin-21-jdk-amd64
+checkout_manual=ok
+arquivos=ok
