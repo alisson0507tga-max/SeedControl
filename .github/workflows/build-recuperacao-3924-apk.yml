@@ -10,8 +10,6 @@ on:
 permissions:
   contents: read
 
-actions:
-
 jobs:
   build-3924:
     runs-on: ubuntu-latest
