@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 import re
+import runpy
 
 ROOT = Path("native/www")
 SRC = Path("correcoes-3924/comercial-validacao-v3924.js")
@@ -32,8 +33,6 @@ if "cadastro.html" not in alterados:
     raise SystemExit("cadastro.html ausente para correcao 3924")
 
 # Deixa claro no relatorio que os arquivos sao salvos no aparelho.
-# O patch-exportacao-relatorios.py, aplicado antes deste arquivo no workflow,
-# ja grava PDF e Excel em Documentos/SeedControl/Relatorios no Android.
 relatorios = ROOT / "relatorios.html"
 if relatorios.exists():
     html_rel = relatorios.read_text(encoding="utf-8")
@@ -68,4 +67,8 @@ if relatorios.exists():
     if "Salvar PDF no celular" not in html_rel or "Salvar Excel no celular" not in html_rel:
         raise SystemExit("Botoes de salvar no celular nao foram aplicados em relatorios.html")
 
-print("Correcao 3924 aplicada: Comercial/PMS sem Fazenda, Talhao ou Secagem obrigatorios; relatorios com botoes para salvar no celular.")
+# Corrige de fato o salvamento: grava em Documentos e NAO abre Share.
+# Isso evita o erro "Share cancelled" mostrado pelo Android.
+runpy.run_path("scripts/patch-relatorios-local-v3935.py", run_name="__main__")
+
+print("Correcao 3924 aplicada: Comercial/PMS sem Fazenda, Talhao ou Secagem obrigatorios; relatorios salvam em Documentos sem abrir Share.")
