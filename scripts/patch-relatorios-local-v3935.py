@@ -8,6 +8,7 @@ if not JS.exists():
 
 js = JS.read_text(encoding="utf-8")
 
+# 1) Corrige o salvamento local: não abre mais o Share depois de salvar.
 assinatura = "async function seedRelatorioSalvarECompartilhar("
 inicio = js.find(assinatura)
 if inicio < 0:
@@ -70,23 +71,44 @@ nova_funcao = r'''async function seedRelatorioSalvarECompartilhar(
 
 js = js[:inicio] + nova_funcao + js[fim:]
 
-# A exportação agora é somente SALVAR. Não deve abrir a tela de compartilhamento.
-if "Share cancelled" in js or "share.share({" in js:
-    # Qualquer Share remanescente fora da função acima não deve ser chamado por esses botões.
-    pass
+# 2) Deixa o PDF mais parecido com o relatório de saídas mostrado no app:
+# faixa verde no topo, título branco centralizado e conteúdo abaixo.
+if "SEEDCONTROL_PDF_VISUAL_3935" not in js:
+    ass_pdf = "async function exportarPDF()"
+    p_ini = js.find(ass_pdf)
+    if p_ini >= 0:
+        p_abre = js.find("{", p_ini)
+        nivel = 0
+        p_fim = None
+        for i in range(p_abre, len(js)):
+            ch = js[i]
+            if ch == "{":
+                nivel += 1
+            elif ch == "}":
+                nivel -= 1
+                if nivel == 0:
+                    p_fim = i + 1
+                    break
 
-# Melhora a apresentação do PDF existente: cabeçalho verde e título branco,
-# mantendo a tabela/relatório que o SeedControl já gera.
-marcador = 'const { jsPDF } = window.jspdf;'
-if marcador in js and "SEEDCONTROL_PDF_VISUAL_3935" not in js:
-    js = js.replace(
-        marcador,
-        marcador + r'''
+        if p_fim:
+            bloco = js[p_ini:p_fim]
+            pos_new = bloco.find("new jsPDF")
+            if pos_new >= 0:
+                pos_ponto = bloco.find(";", pos_new)
+                if pos_ponto >= 0:
+                    visual = r'''
 
     // SEEDCONTROL_PDF_VISUAL_3935
-''',
-        1,
-    )
+    const seedLarguraPagina = pdf.internal.pageSize.getWidth();
+    pdf.setFillColor(20, 125, 54);
+    pdf.rect(10, 7, seedLarguraPagina - 20, 12, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(13);
+    pdf.text("RELATÓRIO - SEEDCONTROL", seedLarguraPagina / 2, 15, { align: "center" });
+    pdf.setTextColor(0, 0, 0);
+'''
+                    bloco = bloco[:pos_ponto + 1] + visual + bloco[pos_ponto + 1:]
+                    js = js[:p_ini] + bloco + js[p_fim:]
 
 JS.write_text(js, encoding="utf-8")
 
@@ -99,4 +121,4 @@ for trecho in (
     if trecho not in final:
         raise SystemExit(f"Validação falhou: {trecho}")
 
-print("Relatórios 3935: salvamento local em Documentos corrigido sem abrir Share.")
+print("Relatórios 3935: salva em Documentos sem Share e PDF com cabeçalho verde estilo relatório de saídas.")
