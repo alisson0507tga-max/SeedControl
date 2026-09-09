@@ -10,7 +10,7 @@ on:
       - "scripts/**"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -36,7 +36,12 @@ jobs:
         id: source
         shell: bash
         run: |
-          ZIP="$(find . -maxdepth 1 -type f -name 'SeedControl*.zip' -print -quit)"
+          ZIP=""
+          if [ -f "./SeedControl_v3.8_teclado_alfanumerico.zip" ]; then
+            ZIP="./SeedControl_v3.8_teclado_alfanumerico.zip"
+          else
+            ZIP="$(find . -maxdepth 1 -type f -name 'SeedControl*.zip' -print -quit)"
+          fi
           if [ -z "$ZIP" ]; then
             echo "Nenhum ZIP SeedControl encontrado na raiz do repositório."
             exit 1
@@ -199,10 +204,12 @@ jobs:
 
           "$APKSIGNER" verify --verbose --print-certs "$SIGNED"
 
-      - name: Guardar APK assinado
-        uses: actions/upload-artifact@v7
-        with:
-          name: SeedControl-v3.8.3-signed-apk
-          path: native/android/app/build/outputs/apk/release/SeedControl-v3.8.3-signed.apk
-          if-no-files-found: error
-          retention-days: 14
+      - name: Publicar APK no release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v3.8.4-teclado \
+            native/android/app/build/outputs/apk/release/SeedControl-v3.8.3-signed.apk \
+            --repo "${{ github.repository }}" \
+            --clobber
