@@ -37,10 +37,10 @@ jobs:
         shell: bash
         run: |
           ZIP=""
-          if [ -f "./SeedControl_v3.8_teclado_alfanumerico.zip" ]; then
-            ZIP="./SeedControl_v3.8_teclado_alfanumerico.zip"
+          if [ -f "./SeedControl_v3.8.4_uso_imediato_source.zip" ]; then
+            ZIP="./SeedControl_v3.8.4_uso_imediato_source.zip"
           else
-            ZIP="$(find . -maxdepth 1 -type f -name 'SeedControl*.zip' -print -quit)"
+            ZIP="$(find . -maxdepth 1 -type f -name 'SeedControl_v*.zip' -print -quit)"
           fi
           if [ -z "$ZIP" ]; then
             echo "Nenhum ZIP SeedControl encontrado na raiz do repositório."
@@ -63,15 +63,6 @@ jobs:
           echo "APP_SRC=$APP_SRC" >> "$GITHUB_ENV"
           cp -a "$APP_SRC"/. native/www/
 
-      - name: Corrigir acesso à movimentação
-        run: python scripts/patch-movimentacao.py
-
-      - name: Corrigir backup nativo no Android
-        run: python scripts/patch-backup-apk.py
-
-      - name: Bloquear lotes duplicados
-        run: python scripts/patch-duplicidade-lotes.py
-
       - name: Verificar arquivos e JavaScript
         shell: bash
         run: |
@@ -84,12 +75,11 @@ jobs:
           test -f native/www/backup.js
           test -f native/www/cadastro.js
           test -f native/www/editar.js
-          grep -q 'data-action="movimentar"' native/www/estoque.js
-          grep -q 'movimentacao.html?id=' native/www/cultivar.js
-          grep -q 'Documentos/SeedControl' native/www/backup.js
-          grep -q 'seedcontrol-duplicidade-cadastro-v383' native/www/cadastro.js
-          grep -q 'Este lote já está cadastrado' native/www/cadastro.js
-          grep -q 'seedcontrol-duplicidade-edicao-v383' native/www/editar.js
+          test -f native/www/entrada-comercial.html
+          test -f native/www/relatorio-saidas.html
+          test -f native/www/ime-nativo-real-v3827.js
+          test -f native/www/vendor/jspdf.umd.min.js
+          test -f native/www/vendor/xlsx.full.min.js
           while IFS= read -r -d '' arquivo; do
             node --check "$arquivo"
           done < <(find native/www -maxdepth 1 -type f -name '*.js' -print0)
