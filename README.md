@@ -19,6 +19,13 @@ O APK não contém arquivos PDF estáticos. Os PDFs são gerados pelo aplicativo
 - APK de referência: `SeedControl-v3.8.4-uso-imediato-3934-signed.apk`
 - Código público extraído: `SeedControl_v3.8.4_uso_imediato_source.zip`
 - Script de importação reproduzível: `scripts/importar-fonte-apk-atual.py`
+- Script de correção da versão atual: `scripts/patch-versao-atual-relatorios-historico.py`
+
+## Correções da versão editável
+
+Os relatórios PDF, Excel e planilhas agora são gravados no armazenamento interno do aplicativo (`DATA/SeedControl/Arquivos`), evitando o erro `EACCES (Permission denied)` causado pela tentativa de criar pastas diretamente em `Documents` no Android moderno. A tela **Arquivos** permite listar os relatórios gerados e usar **Visualizar / Compartilhar** para abrir o PDF ou Excel em um aplicativo compatível.
+
+Os cards do histórico também podem ser editados. Para entradas e saídas, a quantidade alterada reconcilia automaticamente o saldo do lote e impede que o estoque fique negativo. Data, observação e destino também podem ser ajustados manualmente.
 
 Para reimportar outro APK com a mesma estrutura, atualize o caminho `APK` no script e execute:
 
