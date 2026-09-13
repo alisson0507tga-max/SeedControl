@@ -25,7 +25,7 @@ storage_js = r'''// SeedControl v3.8.4 - armazenamento interno sem permissao ext
         const nome = path.split("/").pop();
         if (!nome || !/\.(pdf|xlsx?|csv)$/i.test(nome)) return;
         const lista = metas().filter(x => x.path !== opcoes.path);
-        lista.unshift({ nome, path: opcoes.path, directory: opcoes.directory || "DATA", uri: resultado && resultado.uri || "", criadoEm: new Date().toISOString(), tipo: /\.pdf$/i.test(nome) ? "PDF" : "Excel/Planilha" });
+        lista.unshift({ nome, path: opcoes.path, directory: opcoes.directory || "DATA", uri: resultado && resultado.uri || "", externalUri: resultado && resultado.externalUri || "", criadoEm: new Date().toISOString(), tipo: /\.pdf$/i.test(nome) ? "PDF" : "Excel/Planilha" });
         guardarMetas(lista);
     }
     window.SeedControlArquivos = {
@@ -40,13 +40,21 @@ storage_js = r'''// SeedControl v3.8.4 - armazenamento interno sem permissao ext
         fs.writeFile = async function (opcoes) {
             const entrada = { ...(opcoes || {}) };
             const nome = String(entrada.path || "").split("/").pop();
-            if (String(entrada.directory || "").toUpperCase() === "DOCUMENTS") {
+            const eraDocumentos = String(entrada.directory || "").toUpperCase() === "DOCUMENTS";
+            if (eraDocumentos) {
                 // DATA não exige MANAGE_EXTERNAL_STORAGE e funciona no Android moderno.
                 entrada.path = "SeedControl/Arquivos/" + nome;
                 entrada.directory = "DATA";
                 entrada.recursive = true;
             }
             const resultado = await original(entrada);
+            if (eraDocumentos) {
+                const downloader = window.Capacitor?.Plugins?.SeedControlDownload;
+                if (downloader && entrada.data && /\.(pdf|xlsx?|csv)$/i.test(nome)) {
+                    try { const salvo = await downloader.saveFile({ filename: nome, data: entrada.data }); resultado.externalUri = salvo?.uri || ""; }
+                    catch (erro) { console.warn("Não foi possível copiar para Downloads/SeedControl", erro); }
+                }
+            }
             registrar(entrada, resultado);
             return resultado;
         };
@@ -72,7 +80,7 @@ arquivos_js = r'''(function () {
     async function abrir(item) {
         const fs = window.Capacitor?.Plugins?.Filesystem, share = window.Capacitor?.Plugins?.Share;
         if (!fs || !share) { alert("O componente de arquivos do Android não está disponível. Instale a nova versão do SeedControl."); return; }
-        try { const r = await fs.getUri({ directory: item.directory || "DATA", path: item.path }); await share.share({ title: item.nome, text: "Arquivo gerado pelo SeedControl. Escolha um visualizador ou 'Salvar em...' para guardar no celular.", url: r.uri, dialogTitle: "Abrir ou salvar arquivo" }); }
+        try { const r = item.externalUri ? { uri: item.externalUri } : await fs.getUri({ directory: item.directory || "DATA", path: item.path }); await share.share({ title: item.nome, text: "Arquivo salvo em Downloads/SeedControl.", url: r.uri, dialogTitle: "Abrir arquivo" }); }
         catch (e) { alert("Não foi possível abrir o arquivo. " + (e.message || e)); }
     }
     function render() {
