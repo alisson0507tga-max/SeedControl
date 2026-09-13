@@ -59,8 +59,8 @@ storage_js = r'''// SeedControl v3.8.4 - armazenamento interno sem permissao ext
 (project / "arquivo-storage-v384.js").write_text(storage_js, encoding="utf-8")
 
 central_html = '''<!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Arquivos - SeedControl</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="app-v384.css"><script src="arquivo-storage-v384.js?v=3841"></script></head>
-<body class="seed-v384-page"><header class="topo"><h1>📁 Arquivos</h1><p>PDFs, Excel e planilhas gerados no aplicativo</p></header><main class="container"><div class="card"><p>Os arquivos ficam guardados dentro do aplicativo, sem depender da permissão de armazenamento externo. Use <strong>Visualizar/Compartilhar</strong> para abrir o PDF ou Excel em um aplicativo compatível.</p></div><div id="listaArquivos"></div><button type="button" onclick="window.location.href='historico.html'">← Voltar ao Histórico</button></main><script src="arquivos.js?v=3841"></script></body></html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Arquivos - SeedControl</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="app-v384.css"><script src="arquivo-storage-v384.js?v=3842"></script></head>
+<body class="seed-v384-page"><header class="topo"><h1>📁 Arquivos</h1><p>PDFs, Excel e planilhas gerados no aplicativo</p></header><main class="container"><div class="card"><p>Os arquivos ficam guardados no aplicativo. Use <strong>Visualizar / Salvar no celular</strong> para abrir o PDF ou Excel e escolher o aplicativo ou a pasta de destino no Android.</p></div><div id="listaArquivos"></div><button type="button" onclick="window.location.href='historico.html'">← Voltar ao Histórico</button></main><script src="arquivos.js?v=3842"></script></body></html>
 '''
 (project / "arquivos.html").write_text(central_html, encoding="utf-8")
 
@@ -71,14 +71,14 @@ arquivos_js = r'''(function () {
     function data(v) { try { return new Date(v).toLocaleString("pt-BR"); } catch (_) { return v || ""; } }
     async function abrir(item) {
         const fs = window.Capacitor?.Plugins?.Filesystem, share = window.Capacitor?.Plugins?.Share;
-        if (!fs || !share) { alert("Visualização nativa indisponível neste dispositivo."); return; }
-        try { const r = await fs.getUri({ directory: item.directory || "DATA", path: item.path }); await share.share({ title: item.nome, text: "Arquivo gerado pelo SeedControl", url: r.uri, dialogTitle: "Abrir ou compartilhar arquivo" }); }
+        if (!fs || !share) { alert("O componente de arquivos do Android não está disponível. Instale a nova versão do SeedControl."); return; }
+        try { const r = await fs.getUri({ directory: item.directory || "DATA", path: item.path }); await share.share({ title: item.nome, text: "Arquivo gerado pelo SeedControl. Escolha um visualizador ou 'Salvar em...' para guardar no celular.", url: r.uri, dialogTitle: "Abrir ou salvar arquivo" }); }
         catch (e) { alert("Não foi possível abrir o arquivo. " + (e.message || e)); }
     }
     function render() {
         const itens = window.SeedControlArquivos?.listar?.() || [];
         if (!itens.length) { lista.innerHTML = '<div class="card"><h2>📂 Nenhum arquivo gerado ainda</h2><p>Gere um PDF ou Excel em Relatório de Saídas ou Relatórios.</p></div>'; return; }
-        lista.innerHTML = itens.map((item, i) => '<div class="card"><h2>' + (item.tipo === "PDF" ? "📕" : "📗") + ' ' + esc(item.tipo) + '</h2><p><strong>Arquivo:</strong> ' + esc(item.nome) + '</p><p><strong>Gerado em:</strong> ' + esc(data(item.criadoEm)) + '</p><button type="button" data-abrir="' + i + '">👁️ Visualizar / Compartilhar</button> <button type="button" data-remover="' + i + '">🗑️ Remover da lista</button></div>').join("");
+        lista.innerHTML = itens.map((item, i) => '<div class="card"><h2>' + (item.tipo === "PDF" ? "📕" : "📗") + ' ' + esc(item.tipo) + '</h2><p><strong>Arquivo:</strong> ' + esc(item.nome) + '</p><p><strong>Gerado em:</strong> ' + esc(data(item.criadoEm)) + '</p><button type="button" data-abrir="' + i + '">👁️ Visualizar / Salvar no celular</button> <button type="button" data-remover="' + i + '">🗑️ Remover da lista</button></div>').join("");
         lista.querySelectorAll("[data-abrir]").forEach(b => b.onclick = () => abrir(itens[Number(b.dataset.abrir)]));
         lista.querySelectorAll("[data-remover]").forEach(b => b.onclick = () => { window.SeedControlArquivos.remover(itens[Number(b.dataset.remover)].path); render(); });
     }
@@ -157,6 +157,15 @@ for name, label in [("index.html", "📁 PDFs, Excel e Planilhas"), ("historico.
     if "arquivos.html" not in t:
         t = t.replace("</main>", '<p><button type="button" onclick="window.location.href=\'arquivos.html\'">'+label+'</button></p>\n</main>', 1) if "</main>" in t else t.replace("</body>", '<p><button type="button" onclick="window.location.href=\'arquivos.html\'">'+label+'</button></p>\n</body>', 1)
         p.write_text(t, encoding="utf-8")
+
+# A mesma lista aparece no histórico, sem obrigar o usuário a trocar de tela.
+historico = project / "historico.html"
+hist_text = historico.read_text(encoding="utf-8")
+if 'id="listaArquivos"' not in hist_text:
+    hist_text = hist_text.replace('<div id="lista"></div>', '<div id="lista"></div><section class="card"><h2>📁 PDFs, Excel e Planilhas</h2><div id="listaArquivos"></div></section>', 1)
+if 'src="arquivos.js?v=3842"' not in hist_text:
+    hist_text = hist_text.replace('</body>', '<script src="arquivos.js?v=3842"></script>\n</body>', 1)
+historico.write_text(hist_text, encoding="utf-8")
 
 if OUTPUT.exists(): OUTPUT.unlink()
 with zipfile.ZipFile(OUTPUT, "w", zipfile.ZIP_DEFLATED) as archive:
