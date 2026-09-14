@@ -199,16 +199,17 @@ function removerRegistroHistorico(indice, opcoes = {}) {
     const historico = carregarHistorico(); const pos = Number(indice);
     if (!Number.isInteger(pos) || pos < 0 || pos >= historico.length) return {ok:false,mensagem:"Registro do histórico não encontrado."};
     const item = historico[pos], tipo = String(item.tipo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""), qtd = Number(item.quantidade) || 0;
+    let estoqueAlterado = false;
     if (tipo === "entrada" || tipo === "saida") {
         const estoque = carregarEstoque(); let lote = estoque.find(x => item.loteId != null && Number(x.id) === Number(item.loteId));
         if (!lote) lote = estoque.find(x => String(x.cultivar||"").trim() === String(item.cultivar||"").trim() && String(x.lote||"").trim() === String(item.lote||"").trim());
-        if (!lote) return {ok:false,mensagem:"O lote desta movimentação não está disponível."};
-        const saldo = (Number(lote.bags) || 0) + (tipo === "entrada" ? -qtd : qtd);
-        if (saldo < 0) return {ok:false,mensagem:"A exclusão deixaria o estoque negativo."};
-        lote.bags = saldo; salvarEstoque(estoque,{silencioso:true});
+        if (lote) {
+            const saldo = (Number(lote.bags) || 0) + (tipo === "entrada" ? -qtd : qtd);
+            if (saldo >= 0) { lote.bags = saldo; salvarEstoque(estoque,{silencioso:true}); estoqueAlterado = true; }
+        }
     }
     historico.splice(pos, 1); salvarHistorico(historico,{silencioso:true});
-    if (!opcoes.silencioso) notificarMudanca("estoque");
+    if (!opcoes.silencioso) notificarMudanca(estoqueAlterado ? "estoque" : "historico");
     return {ok:true,mensagem:"Movimentação excluída com sucesso."};
 }
 '''
