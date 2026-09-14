@@ -47,14 +47,17 @@ storage_js = r'''// SeedControl v3.8.4 - armazenamento interno sem permissao ext
                 entrada.directory = "DATA";
                 entrada.recursive = true;
             }
-            const resultado = await original(entrada);
             if (eraDocumentos) {
                 const downloader = window.Capacitor?.Plugins?.SeedControlDownload;
                 if (downloader && entrada.data && /\.(pdf|xlsx?|csv)$/i.test(nome)) {
-                    try { const salvo = await downloader.saveFile({ filename: nome, data: entrada.data }); resultado.externalUri = salvo?.uri || ""; }
-                    catch (erro) { console.warn("Não foi possível copiar para Downloads/SeedControl", erro); }
+                    try {
+                        const salvo = await downloader.saveFile({ filename: nome, data: entrada.data });
+                        const resultado = { uri: salvo?.uri || "", externalUri: salvo?.uri || "" };
+                        if (resultado.uri) { registrar(entrada, resultado); return resultado; }
+                    } catch (erro) { console.warn("Não foi possível salvar em Downloads/SeedControl; usando armazenamento interno", erro); }
                 }
             }
+            const resultado = await original(entrada);
             registrar(entrada, resultado);
             return resultado;
         };
