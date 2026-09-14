@@ -244,7 +244,7 @@ historico.write_text(hist_text, encoding="utf-8")
 # Usar sempre o teclado nativo normal do Android. Os scripts antigos de IME
 # substituíam a entrada do WebView e impediam a área de transferência do Gboard.
 import re
-keyboard_scripts = re.compile(r'<script[^>]+(?:seed-teclado-final|ime-nativo-real|teclado-sugestoes)[^>]*></script>\s*', re.I)
+keyboard_scripts = re.compile(r'<script[^>]+(?:seed-teclado-final|ime-nativo-real|teclado-sugestoes|keyboard-universal)[^>]*></script>\s*', re.I)
 for html in sorted(project.glob("*.html")):
     t = html.read_text(encoding="utf-8")
     t = keyboard_scripts.sub("", t)
@@ -284,7 +284,7 @@ native_input_js = r'''// SeedControl - teclado nativo e colagem global
         const botao = document.createElement("button"); botao.type = "button"; botao.textContent = "📋 Colar da área de transferência"; botao.style.cssText = "width:auto!important;min-height:34px!important;padding:6px 10px!important;margin:0!important;font-size:13px!important;"; botao.addEventListener("click", () => colar(campo, botao));
         acoes.appendChild(botao); campo.insertAdjacentElement("beforebegin", acoes);
     }
-    function varrer() { document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar); }
+    function varrer() { if (/\/index\.html?$/.test(location.pathname) || location.pathname === "/" || location.pathname === "") return; document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar); }
     function iniciar() { varrer(); document.addEventListener("focusin", e => preparar(e.target), true); new MutationObserver(varrer).observe(document.body, {childList:true, subtree:true}); }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, {once:true}); else iniciar();
 })();
