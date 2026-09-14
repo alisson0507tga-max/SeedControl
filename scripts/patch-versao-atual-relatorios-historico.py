@@ -176,7 +176,7 @@ helper = r'''
 function atualizarRegistroHistorico(indice, atualizacoes = {}, opcoes = {}) {
     const historico = carregarHistorico(); const pos = Number(indice);
     if (!Number.isInteger(pos) || pos < 0 || pos >= historico.length) return {ok:false,mensagem:"Registro do histórico não encontrado."};
-    const anterior = historico[pos], tipo = String(anterior.tipo || "").toLowerCase(), movimento = tipo === "entrada" || tipo === "saida";
+    const anterior = historico[pos], tipo = String(anterior.tipo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""), movimento = tipo === "entrada" || tipo === "saida";
     const antiga = Number(anterior.quantidade) || 0, recebida = atualizacoes.quantidade, nova = recebida === undefined ? antiga : Number(String(recebida).replace(",","."));
     if (movimento && (!Number.isFinite(nova) || nova <= 0)) return {ok:false,mensagem:"Informe uma quantidade válida maior que zero."};
     if (movimento) {
@@ -198,7 +198,7 @@ function atualizarRegistroHistorico(indice, atualizacoes = {}, opcoes = {}) {
 function removerRegistroHistorico(indice, opcoes = {}) {
     const historico = carregarHistorico(); const pos = Number(indice);
     if (!Number.isInteger(pos) || pos < 0 || pos >= historico.length) return {ok:false,mensagem:"Registro do histórico não encontrado."};
-    const item = historico[pos], tipo = String(item.tipo || "").toLowerCase(), qtd = Number(item.quantidade) || 0;
+    const item = historico[pos], tipo = String(item.tipo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""), qtd = Number(item.quantidade) || 0;
     if (tipo === "entrada" || tipo === "saida") {
         const estoque = carregarEstoque(); let lote = estoque.find(x => item.loteId != null && Number(x.id) === Number(item.loteId));
         if (!lote) lote = estoque.find(x => String(x.cultivar||"").trim() === String(item.cultivar||"").trim() && String(x.lote||"").trim() === String(item.lote||"").trim());
