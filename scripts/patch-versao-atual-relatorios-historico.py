@@ -158,7 +158,7 @@ function excluirRegistroHistorico(i) { const h=carregarHistorico(), item=h[Numbe
 function renderizarHistorico() {
     if (!lista) return; const h=carregarHistorico();
     if (!h.length) { lista.innerHTML='<div class="card"><h2>📋 Nenhuma movimentação encontrada</h2><p>Faça uma entrada ou saída para começar o histórico.</p></div>'; return; }
-    lista.innerHTML=h.map((item,i)=>{const t=String(item.tipo||"").toLowerCase(), mov=t==="entrada"||t==="saida"; return '<div class="card"><div id="hist-resumo-'+i+'"><h2>'+ico(t)+' '+escHist(tipoNome(t))+'</h2><p><strong>📅 Data:</strong> '+escHist(item.data||"-")+'</p><p><strong>🌱 Cultivar:</strong> '+escHist(item.cultivar||"-")+'</p><p><strong>📋 Lote:</strong> '+escHist(item.lote||"-")+'</p><p><strong>📦 Quantidade:</strong> '+escHist(item.quantidade??0)+' Bags</p>'+(item.destino?'<p><strong>🚚 Destino:</strong> '+escHist(item.destino)+'</p>':'')+'<p><strong>📝 Observação:</strong> '+escHist(item.observacao||"Sem observação")+'</p><button type="button" onclick="alternarEdicaoHistorico('+i+',true)">✏️ Editar card</button> <button type="button" onclick="excluirRegistroHistorico('+i+')">🗑️ Excluir movimentação</button></div><form id="hist-edit-'+i+'" hidden onsubmit="event.preventDefault();salvarEdicaoHistorico('+i+')"><h3>Editar '+escHist(tipoNome(t))+'</h3><label>Data<input name="data" type="text" value="'+escHist(item.data||"")+'"></label>'+(mov?'<label>Quantidade de Bags<input name="quantidade" type="text" inputmode="text" value="'+escHist(item.quantidade??"")+'"></label>':'')+(item.destino!==undefined?'<label>Destino<input name="destino" type="text" value="'+escHist(item.destino||"")+'"></label>':'')+'<label>Observação<textarea name="observacao">'+escHist(item.observacao||"")+'</textarea></label><button type="submit">💾 Salvar</button> <button type="button" onclick="alternarEdicaoHistorico('+i+',false)">Cancelar</button></form></div>';}).join("");
+    lista.innerHTML=h.map((item,i)=>{const t=String(item.tipo||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""), mov=t==="entrada"||t==="saida"; return '<div class="card"><div id="hist-resumo-'+i+'"><h2>'+ico(t)+' '+escHist(tipoNome(t))+'</h2><p><strong>📅 Data:</strong> '+escHist(item.data||"-")+'</p><p><strong>🌱 Cultivar:</strong> '+escHist(item.cultivar||"-")+'</p><p><strong>📋 Lote:</strong> '+escHist(item.lote||"-")+'</p><p><strong>📦 Quantidade:</strong> '+escHist(item.quantidade??0)+' Bags</p>'+(item.destino?'<p><strong>🚚 Destino:</strong> '+escHist(item.destino)+'</p>':'')+'<p><strong>📝 Observação:</strong> '+escHist(item.observacao||"Sem observação")+'</p><button type="button" onclick="alternarEdicaoHistorico('+i+',true)">✏️ Editar card</button> <button type="button" onclick="excluirRegistroHistorico('+i+')">🗑️ Excluir movimentação</button></div><form id="hist-edit-'+i+'" hidden onsubmit="event.preventDefault();salvarEdicaoHistorico('+i+')"><h3>Editar '+escHist(tipoNome(t))+'</h3><label>Data<input name="data" type="text" value="'+escHist(item.data||"")+'"></label>'+(mov?'<label>Quantidade de Bags<input name="quantidade" type="text" inputmode="text" value="'+escHist(item.quantidade??"")+'"></label>':'')+(item.destino!==undefined?'<label>Destino<input name="destino" type="text" value="'+escHist(item.destino||"")+'"></label>':'')+'<label>Observação<textarea name="observacao">'+escHist(item.observacao||"")+'</textarea></label><button type="submit">💾 Salvar</button> <button type="button" onclick="alternarEdicaoHistorico('+i+',false)">Cancelar</button></form></div>';}).join("");
 }
 function registrarOuvintesHistorico(){if(ouvintesHistoricoRegistrados)return;ouvintesHistoricoRegistrados=true;window.addEventListener("seedcontrol:atualizado",renderizarHistorico);window.addEventListener("storage",renderizarHistorico);window.addEventListener("focus",renderizarHistorico);}
 function iniciarHistorico(){renderizarHistorico();registrarOuvintesHistorico();}
@@ -213,9 +213,12 @@ function removerRegistroHistorico(indice, opcoes = {}) {
     return {ok:true,mensagem:"Movimentação excluída com sucesso."};
 }
 '''
-if "function atualizarRegistroHistorico" not in text:
-    marker = "// ======================================\n// CONFIGURAÇÕES"
-    if marker not in text: raise SystemExit("Marcador de configurações não encontrado")
+marker = "// ======================================\n// CONFIGURAÇÕES"
+if marker not in text: raise SystemExit("Marcador de configurações não encontrado")
+inicio_helper = text.find("// ======================================\n// EDITAR REGISTRO DO HISTÓRICO")
+if inicio_helper >= 0:
+    text = text[:inicio_helper] + helper + "\n" + text[text.find(marker, inicio_helper):]
+else:
     text = text.replace(marker, helper + "\n" + marker, 1)
 # Keep the lot identity on future movement cards to make reconciliation exact.
 marker = '''        lote:\n            lote.lote,\n        quantidade:\n            qtd,'''
