@@ -89,6 +89,45 @@ back_js = r'''// SeedControl v3.8.6 - botão Voltar retorna à tela inicial
 '''
 (project / "back-button-v386.js").write_text(back_js, encoding="utf-8")
 
+keyboard_js = r'''// SeedControl v3.8.7 - teclado de texto e colagem em todas as telas
+(function () {
+    "use strict";
+    function preparar(campo) {
+        if (!campo || campo.disabled || campo.readOnly) return;
+        if (campo.tagName !== "INPUT" && campo.tagName !== "TEXTAREA") return;
+        const tipo = String(campo.type || "text").toLowerCase();
+        if (campo.tagName === "INPUT" && ["file", "checkbox", "radio", "button", "submit", "reset", "color", "range", "date", "datetime-local", "time"].includes(tipo)) return;
+        if (campo.tagName === "INPUT" && tipo === "number") campo.type = "text";
+        campo.setAttribute("inputmode", "text");
+        campo.setAttribute("autocomplete", "on");
+        campo.setAttribute("autocorrect", "on");
+        campo.setAttribute("spellcheck", "true");
+        campo.setAttribute("autocapitalize", "sentences");
+    }
+    function colar(campo) {
+        const clip = window.Capacitor?.Plugins?.Clipboard;
+        const ler = clip?.read ? clip.read().then(r => r?.value || "") : navigator.clipboard?.readText?.();
+        Promise.resolve(ler).then(function (texto) {
+            if (!texto) return;
+            const inicio = campo.selectionStart ?? campo.value.length;
+            const fim = campo.selectionEnd ?? inicio;
+            campo.setRangeText(String(texto), inicio, fim, "end");
+            campo.dispatchEvent(new Event("input", { bubbles: true }));
+        }).catch(function () {});
+    }
+    function iniciar() {
+        document.querySelectorAll("input, textarea").forEach(preparar);
+        document.addEventListener("focusin", e => preparar(e.target), true);
+        document.addEventListener("contextmenu", function (e) {
+            if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) preparar(e.target);
+        }, true);
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true }); else iniciar();
+    window.SeedControlColar = colar;
+})();
+'''
+(project / "keyboard-universal-v387.js").write_text(keyboard_js, encoding="utf-8")
+
 central_html = '''<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Arquivos - SeedControl</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="app-v384.css"><script src="arquivo-storage-v384.js?v=3842"></script></head>
 <body class="seed-v384-page"><header class="topo"><h1>📁 Arquivos</h1><p>PDFs, Excel e planilhas gerados no aplicativo</p></header><main class="container"><div class="card"><p>Os arquivos ficam guardados no aplicativo. Use <strong>Visualizar / Salvar no celular</strong> para abrir o PDF ou Excel e escolher o aplicativo ou a pasta de destino no Android.</p></div><div id="listaArquivos"></div><button type="button" onclick="window.location.href='historico.html'">← Voltar ao Histórico</button></main><script src="arquivos.js?v=3842"></script></body></html>
@@ -182,6 +221,8 @@ for html in sorted(project.glob("*.html")):
         t = t.replace("</head>", '<script src="arquivo-storage-v384.js?v=3841"></script>\n</head>', 1)
     if "back-button-v386.js" not in t:
         t = t.replace("</head>", '<script src="back-button-v386.js?v=3861"></script>\n</head>', 1)
+    if "keyboard-universal-v387.js" not in t:
+        t = t.replace("</head>", '<script src="keyboard-universal-v387.js?v=3871"></script>\n</head>', 1)
     html.write_text(t, encoding="utf-8")
 
 # Add obvious entry points to the current home and history screens.
