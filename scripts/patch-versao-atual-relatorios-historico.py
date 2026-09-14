@@ -98,8 +98,10 @@ keyboard_js = r'''// SeedControl - atributos para o teclado nativo do Android
         const tipo = String(campo.type || "text").toLowerCase();
         if (campo.tagName === "INPUT" && ["file", "checkbox", "radio", "button", "submit", "reset", "color", "range", "date", "datetime-local", "time"].includes(tipo)) return;
         if (campo.tagName === "INPUT" && tipo === "number") campo.type = "text";
-        campo.setAttribute("inputmode", "text");
         campo.setAttribute("autocomplete", "on");
+        campo.setAttribute("aria-autocomplete", "both");
+        campo.setAttribute("enterkeyhint", "next");
+        if (!campo.getAttribute("name") && campo.id) campo.setAttribute("name", campo.id);
         campo.setAttribute("autocorrect", "on");
         campo.setAttribute("autocapitalize", "sentences");
         campo.setAttribute("spellcheck", "true");
@@ -268,7 +270,7 @@ native_input_js = r'''// SeedControl - teclado nativo Android em todos os campos
     "use strict";
     const tiposSemTecladoTexto = new Set(["file", "checkbox", "radio", "button", "submit", "reset", "color", "range", "date", "datetime-local", "time", "month", "week"]);
     function preparar(campo) {
-        if (!campo || campo.disabled || campo.readOnly || campo.dataset.seedNativeKeyboard4004 === "1") return;
+        if (!campo || campo.disabled || campo.readOnly || campo.dataset.seedNativeKeyboard4005 === "1") return;
         const eInput = campo.tagName === "INPUT";
         const eTexto = eInput || campo.tagName === "TEXTAREA" || campo.isContentEditable;
         if (!eTexto) return;
@@ -277,9 +279,11 @@ native_input_js = r'''// SeedControl - teclado nativo Android em todos os campos
         if (eInput && ["number", "tel", "search"].includes(tipo)) {
             try { campo.type = "text"; } catch (_) {}
         }
-        campo.dataset.seedNativeKeyboard4004 = "1";
-        campo.setAttribute("inputmode", "text");
+        campo.dataset.seedNativeKeyboard4005 = "1";
         campo.setAttribute("autocomplete", "on");
+        campo.setAttribute("aria-autocomplete", "both");
+        campo.setAttribute("enterkeyhint", "next");
+        if (!campo.getAttribute("name") && campo.id) campo.setAttribute("name", campo.id);
         campo.setAttribute("autocorrect", "on");
         campo.setAttribute("autocapitalize", "sentences");
         campo.setAttribute("spellcheck", "true");
@@ -300,9 +304,9 @@ native_input_js = r'''// SeedControl - teclado nativo Android em todos os campos
 for html in sorted(project.glob("*.html")):
     t = html.read_text(encoding="utf-8")
     if "teclado-nativo-seedcontrol.js" not in t:
-        t = t.replace("</head>", '<script src="teclado-nativo-seedcontrol.js?v=4004"></script>\n</head>', 1)
+        t = t.replace("</head>", '<script src="teclado-nativo-seedcontrol.js?v=4005"></script>\n</head>', 1)
     else:
-        t = re.sub(r'teclado-nativo-seedcontrol\.js\?v=\d+', 'teclado-nativo-seedcontrol.js?v=4004', t)
+        t = re.sub(r'teclado-nativo-seedcontrol\.js\?v=\d+', 'teclado-nativo-seedcontrol.js?v=4005', t)
     html.write_text(t, encoding="utf-8")
 
 if OUTPUT.exists(): OUTPUT.unlink()
