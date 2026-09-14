@@ -278,12 +278,11 @@ jobs:
 
           "$APKSIGNER" verify --verbose --print-certs "$SIGNED"
 
-      - name: Publicar APK no release
-        shell: bash
+      - name: Publicar APK na Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v3.8.9
+          files: native/android/app/build/outputs/apk/release/SeedControl-v3.8.9-signed.apk
+          overwrite_files: true
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release upload v3.8.9 \
-            native/android/app/build/outputs/apk/release/SeedControl-v3.8.8-signed.apk \
-            --repo "${{ github.repository }}" \
-            --clobber
+          GITHUB_TOKEN: ${{ github.token }}
