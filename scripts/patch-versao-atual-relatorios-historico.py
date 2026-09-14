@@ -69,6 +69,26 @@ storage_js = r'''// SeedControl v3.8.4 - armazenamento interno sem permissao ext
 '''
 (project / "arquivo-storage-v384.js").write_text(storage_js, encoding="utf-8")
 
+back_js = r'''// SeedControl v3.8.6 - botão Voltar retorna à tela inicial
+(function () {
+    "use strict";
+    function inicio() { return /(^|\/)index\.html$/.test(location.pathname) || /\/$/.test(location.pathname); }
+    function voltarParaInicio() {
+        if (!inicio()) { location.href = "index.html"; return; }
+        if (window.Capacitor?.Plugins?.App?.exitApp) window.Capacitor.Plugins.App.exitApp();
+    }
+    function instalar() {
+        const app = window.Capacitor?.Plugins?.App;
+        if (!app || window.__seedcontrolBackV386) return;
+        window.__seedcontrolBackV386 = true;
+        app.addListener("backButton", voltarParaInicio);
+    }
+    instalar();
+    setTimeout(instalar, 0);
+})();
+'''
+(project / "back-button-v386.js").write_text(back_js, encoding="utf-8")
+
 central_html = '''<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Arquivos - SeedControl</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="app-v384.css"><script src="arquivo-storage-v384.js?v=3842"></script></head>
 <body class="seed-v384-page"><header class="topo"><h1>📁 Arquivos</h1><p>PDFs, Excel e planilhas gerados no aplicativo</p></header><main class="container"><div class="card"><p>Os arquivos ficam guardados no aplicativo. Use <strong>Visualizar / Salvar no celular</strong> para abrir o PDF ou Excel e escolher o aplicativo ou a pasta de destino no Android.</p></div><div id="listaArquivos"></div><button type="button" onclick="window.location.href='historico.html'">← Voltar ao Histórico</button></main><script src="arquivos.js?v=3842"></script></body></html>
@@ -160,6 +180,8 @@ for html in sorted(project.glob("*.html")):
     t = html.read_text(encoding="utf-8")
     if "arquivo-storage-v384.js" not in t:
         t = t.replace("</head>", '<script src="arquivo-storage-v384.js?v=3841"></script>\n</head>', 1)
+    if "back-button-v386.js" not in t:
+        t = t.replace("</head>", '<script src="back-button-v386.js?v=3861"></script>\n</head>', 1)
     html.write_text(t, encoding="utf-8")
 
 # Add obvious entry points to the current home and history screens.
