@@ -241,6 +241,46 @@ if 'src="arquivos.js?v=3842"' not in hist_text:
     hist_text = hist_text.replace('</body>', '<script src="arquivos.js?v=3842"></script>\n</body>', 1)
 historico.write_text(hist_text, encoding="utf-8")
 
+# Usar sempre o teclado nativo normal do Android. Os scripts antigos de IME
+# substituíam a entrada do WebView e impediam a área de transferência do Gboard.
+import re
+keyboard_scripts = re.compile(r'<script[^>]+(?:seed-teclado-final|ime-nativo-real|teclado-sugestoes)[^>]*></script>\s*', re.I)
+for html in sorted(project.glob("*.html")):
+    t = html.read_text(encoding="utf-8")
+    t = keyboard_scripts.sub("", t)
+    t = re.sub(r'\s+inputmode="(?:numeric|decimal)"', ' inputmode="text"', t, flags=re.I)
+    t = re.sub(r'\btype="number"', 'type="text"', t, flags=re.I)
+    t = re.sub(r'\s+autocomplete="off"', ' autocomplete="on"', t, flags=re.I)
+    t = re.sub(r'\s+spellcheck="false"', ' spellcheck="true"', t, flags=re.I)
+    html.write_text(t, encoding="utf-8")
+
+native_input_js = r'''// SeedControl - teclado nativo e area de transferencia
+(function () {
+    "use strict";
+    function preparar(campo) {
+        if (!campo || campo.disabled || campo.readOnly) return;
+        campo.setAttribute("inputmode", "text");
+        campo.setAttribute("autocomplete", "on");
+        campo.setAttribute("autocorrect", "on");
+        campo.setAttribute("spellcheck", "true");
+        campo.style.userSelect = "text";
+        campo.style.webkitUserSelect = "text";
+    }
+    function iniciar() {
+        document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar);
+        document.addEventListener("focusin", e => preparar(e.target), true);
+        new MutationObserver(() => document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar)).observe(document.body, {childList:true, subtree:true});
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, {once:true}); else iniciar();
+})();
+'''
+(project / "teclado-nativo-seedcontrol.js").write_text(native_input_js, encoding="utf-8")
+for html in sorted(project.glob("*.html")):
+    t = html.read_text(encoding="utf-8")
+    if "teclado-nativo-seedcontrol.js" not in t:
+        t = t.replace("</head>", '<script src="teclado-nativo-seedcontrol.js?v=4001"></script>\n</head>', 1)
+    html.write_text(t, encoding="utf-8")
+
 if OUTPUT.exists(): OUTPUT.unlink()
 with zipfile.ZipFile(OUTPUT, "w", zipfile.ZIP_DEFLATED) as archive:
     for path in sorted(project.rglob("*")):

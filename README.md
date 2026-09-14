@@ -27,6 +27,8 @@ Os relatórios PDF, Excel e planilhas agora são gravados no armazenamento inter
 
 Os cards do histórico também podem ser editados. Para entradas e saídas, a quantidade alterada reconcilia automaticamente o saldo do lote e impede que o estoque fique negativo. Data, observação e destino também podem ser ajustados manualmente.
 
+Todos os campos de texto e quantidade usam o teclado nativo normal do Android, com letras, números, sugestões e a área de transferência do teclado do aparelho para copiar e colar.
+
 Para reimportar outro APK com a mesma estrutura, atualize o caminho `APK` no script e execute:
 
 ```bash
