@@ -254,23 +254,38 @@ for html in sorted(project.glob("*.html")):
     t = re.sub(r'\s+spellcheck="false"', ' spellcheck="true"', t, flags=re.I)
     html.write_text(t, encoding="utf-8")
 
-native_input_js = r'''// SeedControl - teclado nativo e area de transferencia
+native_input_js = r'''// SeedControl - teclado nativo e colagem global
 (function () {
     "use strict";
+    function plugin() { return window.Capacitor?.Plugins?.Clipboard || null; }
+    function inserir(campo, texto) {
+        const atual = String(campo.value || ""), ini = Number.isInteger(campo.selectionStart) ? campo.selectionStart : atual.length, fim = Number.isInteger(campo.selectionEnd) ? campo.selectionEnd : ini;
+        campo.value = atual.slice(0, ini) + texto + atual.slice(fim);
+        campo.dispatchEvent(new Event("input", {bubbles:true})); campo.dispatchEvent(new Event("change", {bubbles:true})); campo.focus();
+        try { campo.setSelectionRange(ini + texto.length, ini + texto.length); } catch (_) {}
+    }
+    async function colar(campo, botao) {
+        const antigo = botao.textContent; botao.disabled = true; botao.textContent = "Colando...";
+        try {
+            const p = plugin(); let texto = "";
+            if (p?.read) texto = String((await p.read()).value || "");
+            else if (navigator.clipboard?.readText) texto = String(await navigator.clipboard.readText());
+            if (!texto) { alert("Não há texto copiado na área de transferência."); return; }
+            inserir(campo, texto);
+        } catch (e) { alert("Não foi possível acessar a área de transferência. Copie o texto novamente."); }
+        finally { botao.disabled = false; botao.textContent = antigo; }
+    }
     function preparar(campo) {
-        if (!campo || campo.disabled || campo.readOnly) return;
-        campo.setAttribute("inputmode", "text");
-        campo.setAttribute("autocomplete", "on");
-        campo.setAttribute("autocorrect", "on");
-        campo.setAttribute("spellcheck", "true");
-        campo.style.userSelect = "text";
-        campo.style.webkitUserSelect = "text";
+        if (!campo || campo.disabled || campo.readOnly || campo.dataset.seedClipboard4002 === "1") return;
+        campo.dataset.seedClipboard4002 = "1";
+        campo.setAttribute("inputmode", "text"); campo.setAttribute("autocomplete", "on"); campo.setAttribute("autocorrect", "on"); campo.setAttribute("spellcheck", "true");
+        campo.style.userSelect = "text"; campo.style.webkitUserSelect = "text";
+        const acoes = document.createElement("div"); acoes.style.cssText = "display:flex;justify-content:flex-end;margin:3px 0 5px;";
+        const botao = document.createElement("button"); botao.type = "button"; botao.textContent = "📋 Colar da área de transferência"; botao.style.cssText = "width:auto!important;min-height:34px!important;padding:6px 10px!important;margin:0!important;font-size:13px!important;"; botao.addEventListener("click", () => colar(campo, botao));
+        acoes.appendChild(botao); campo.insertAdjacentElement("beforebegin", acoes);
     }
-    function iniciar() {
-        document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar);
-        document.addEventListener("focusin", e => preparar(e.target), true);
-        new MutationObserver(() => document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar)).observe(document.body, {childList:true, subtree:true});
-    }
+    function varrer() { document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar); }
+    function iniciar() { varrer(); document.addEventListener("focusin", e => preparar(e.target), true); new MutationObserver(varrer).observe(document.body, {childList:true, subtree:true}); }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, {once:true}); else iniciar();
 })();
 '''
@@ -278,7 +293,9 @@ native_input_js = r'''// SeedControl - teclado nativo e area de transferencia
 for html in sorted(project.glob("*.html")):
     t = html.read_text(encoding="utf-8")
     if "teclado-nativo-seedcontrol.js" not in t:
-        t = t.replace("</head>", '<script src="teclado-nativo-seedcontrol.js?v=4001"></script>\n</head>', 1)
+        t = t.replace("</head>", '<script src="teclado-nativo-seedcontrol.js?v=4002"></script>\n</head>', 1)
+    else:
+        t = re.sub(r'teclado-nativo-seedcontrol\.js\?v=\d+', 'teclado-nativo-seedcontrol.js?v=4002', t)
     html.write_text(t, encoding="utf-8")
 
 if OUTPUT.exists(): OUTPUT.unlink()
