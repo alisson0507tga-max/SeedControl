@@ -89,7 +89,7 @@ back_js = r'''// SeedControl v3.8.6 - botão Voltar retorna à tela inicial
 '''
 (project / "back-button-v386.js").write_text(back_js, encoding="utf-8")
 
-keyboard_js = r'''// SeedControl v3.8.7 - teclado de texto e colagem em todas as telas
+keyboard_js = r'''// SeedControl - atributos para o teclado nativo do Android
 (function () {
     "use strict";
     function preparar(campo) {
@@ -101,29 +101,15 @@ keyboard_js = r'''// SeedControl v3.8.7 - teclado de texto e colagem em todas as
         campo.setAttribute("inputmode", "text");
         campo.setAttribute("autocomplete", "on");
         campo.setAttribute("autocorrect", "on");
-        campo.setAttribute("spellcheck", "true");
         campo.setAttribute("autocapitalize", "sentences");
-    }
-    function colar(campo) {
-        const clip = window.Capacitor?.Plugins?.Clipboard;
-        const ler = clip?.read ? clip.read().then(r => r?.value || "") : navigator.clipboard?.readText?.();
-        Promise.resolve(ler).then(function (texto) {
-            if (!texto) return;
-            const inicio = campo.selectionStart ?? campo.value.length;
-            const fim = campo.selectionEnd ?? inicio;
-            campo.setRangeText(String(texto), inicio, fim, "end");
-            campo.dispatchEvent(new Event("input", { bubbles: true }));
-        }).catch(function () {});
+        campo.setAttribute("spellcheck", "true");
     }
     function iniciar() {
         document.querySelectorAll("input, textarea").forEach(preparar);
         document.addEventListener("focusin", e => preparar(e.target), true);
-        document.addEventListener("contextmenu", function (e) {
-            if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) preparar(e.target);
-        }, true);
+        document.addEventListener("contextmenu", e => preparar(e.target), true);
     }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true }); else iniciar();
-    window.SeedControlColar = colar;
 })();
 '''
 (project / "keyboard-universal-v387.js").write_text(keyboard_js, encoding="utf-8")
@@ -265,65 +251,40 @@ historico.write_text(hist_text, encoding="utf-8")
 # Usar sempre o teclado nativo normal do Android. Os scripts antigos de IME
 # substituíam a entrada do WebView e impediam a área de transferência do Gboard.
 import re
-keyboard_scripts = re.compile(r'<script[^>]+(?:seed-teclado-final|ime-nativo-real|teclado-sugestoes|keyboard-universal)[^>]*></script>\s*', re.I)
+keyboard_scripts = re.compile(r'<script[^>]+(?:seed-teclado-final|ime-nativo-real|teclado-sugestoes|keyboard-universal|movimentacao-colar)[^>]*></script>\s*', re.I)
+keyboard_styles = re.compile(r'<link[^>]+(?:seed-teclado-final|ime-nativo-real|teclado-sugestoes)[^>]*>\s*', re.I)
 for html in sorted(project.glob("*.html")):
     t = html.read_text(encoding="utf-8")
     t = keyboard_scripts.sub("", t)
+    t = keyboard_styles.sub("", t)
     t = re.sub(r'\s+inputmode="(?:numeric|decimal)"', ' inputmode="text"', t, flags=re.I)
     t = re.sub(r'\btype="number"', 'type="text"', t, flags=re.I)
     t = re.sub(r'\s+autocomplete="off"', ' autocomplete="on"', t, flags=re.I)
     t = re.sub(r'\s+spellcheck="false"', ' spellcheck="true"', t, flags=re.I)
     html.write_text(t, encoding="utf-8")
 
-native_input_js = r'''// SeedControl - teclado nativo e colagem global
+native_input_js = r'''// SeedControl - teclado nativo com sugestões do Android
 (function () {
     "use strict";
-    function plugin() { return window.Capacitor?.Plugins?.Clipboard || null; }
-    function inserir(campo, texto) {
-        const atual = String(campo.value || ""), ini = Number.isInteger(campo.selectionStart) ? campo.selectionStart : atual.length, fim = Number.isInteger(campo.selectionEnd) ? campo.selectionEnd : ini;
-        campo.value = atual.slice(0, ini) + texto + atual.slice(fim);
-        campo.dispatchEvent(new Event("input", {bubbles:true})); campo.dispatchEvent(new Event("change", {bubbles:true})); campo.focus();
-        try { campo.setSelectionRange(ini + texto.length, ini + texto.length); } catch (_) {}
-    }
-    const CLIP_KEY = "seedcontrol:cola:sugestoes:v1";
-    const exemplos = ["Alisson", "amor", "amora"];
-    function lerCola() { try { const v=JSON.parse(localStorage.getItem(CLIP_KEY)||"[]"); return Array.isArray(v)?v.filter(Boolean).map(String):[]; } catch (_) { return []; } }
-    function guardarCola(texto) { if (!texto) return; const lista=[String(texto),...lerCola().filter(x=>x!==String(texto))].slice(0,20); try { localStorage.setItem(CLIP_KEY,JSON.stringify(lista)); } catch (_) {} }
-    function inserirTexto(campo, texto) {
-        const atual=String(campo.value||""), ini=Number.isInteger(campo.selectionStart)?campo.selectionStart:atual.length, fim=Number.isInteger(campo.selectionEnd)?campo.selectionEnd:ini;
-        campo.value=atual.slice(0,ini)+texto+atual.slice(fim); campo.dispatchEvent(new Event("input",{bubbles:true})); campo.dispatchEvent(new Event("change",{bubbles:true})); campo.focus(); try { campo.setSelectionRange(ini+texto.length,ini+texto.length); } catch (_) {}
-    }
-    async function colar(campo, botao) {
-        const antigo = botao.textContent; botao.disabled = true; botao.textContent = "Colando...";
-        try {
-            const p = plugin(); let texto = "";
-            if (p?.read) texto = String((await p.read()).value || "");
-            else if (navigator.clipboard?.readText) texto = String(await navigator.clipboard.readText());
-            if (!texto) { alert("Não há texto copiado na área de transferência."); return; }
-            guardarCola(texto); inserirTexto(campo, texto); atualizarSugestoes(campo);
-        } catch (e) { alert("Não foi possível acessar a área de transferência. Copie o texto novamente."); }
-        finally { botao.disabled = false; botao.textContent = antigo; }
-    }
-    function atualizarSugestoes(campo) {
-        const barra=campo.previousElementSibling?.classList?.contains("seed-sugestoes") ? campo.previousElementSibling : null; if (!barra) return;
-        const valor=String(campo.value||""), palavra=(valor.match(/[^\s,;]*$/)||[""])[0].toLowerCase();
-        const lista=[...new Set([...exemplos,...lerCola()])].filter(x=>!palavra || x.toLowerCase().startsWith(palavra)).slice(0,6);
-        barra.innerHTML=""; lista.forEach(x=>{ const b=document.createElement("button"); b.type="button"; b.textContent=x; b.addEventListener("mousedown",e=>e.preventDefault()); b.addEventListener("click",()=>{ const atual=String(campo.value||""), ini=Number.isInteger(campo.selectionStart)?campo.selectionStart:atual.length, inicio=atual.slice(0,ini).search(/[^\s,;]*$/); campo.setSelectionRange(inicio<0?ini:inicio,Number.isInteger(campo.selectionEnd)?campo.selectionEnd:ini); inserirTexto(campo,x); guardarCola(x); atualizarSugestoes(campo); }); barra.appendChild(b); });
-        barra.hidden=!lista.length;
-    }
     function preparar(campo) {
-        if (!campo || campo.disabled || campo.readOnly || campo.dataset.seedClipboard4002 === "1") return;
-        campo.dataset.seedClipboard4002 = "1";
-        campo.setAttribute("inputmode", "text"); campo.setAttribute("autocomplete", "on"); campo.setAttribute("autocorrect", "on"); campo.setAttribute("spellcheck", "true");
-        campo.style.userSelect = "text"; campo.style.webkitUserSelect = "text";
-        const sugestoes=document.createElement("div"); sugestoes.className="seed-sugestoes"; sugestoes.setAttribute("aria-label","Sugestões e cola"); sugestoes.style.cssText="display:flex;gap:6px;overflow-x:auto;margin:3px 0 4px;padding:2px 0;";
-        const estilo=document.createElement("style"); estilo.textContent=".seed-sugestoes button{width:auto!important;min-height:30px!important;margin:0!important;padding:4px 10px!important;border:1px solid #b9c7d6!important;border-radius:14px!important;background:#eef4fa!important;color:#19324d!important;font-size:13px!important;white-space:nowrap!important}.seed-sugestoes button:active{transform:scale(.97)}"; if(!document.getElementById("seed-sugestoes-style")){estilo.id="seed-sugestoes-style";document.head.appendChild(estilo);}
-        const acoes = document.createElement("div"); acoes.style.cssText = "display:flex;justify-content:flex-end;margin:3px 0 5px;";
-        const botao = document.createElement("button"); botao.type = "button"; botao.textContent = "📋 Colar da área de transferência"; botao.style.cssText = "width:auto!important;min-height:34px!important;padding:6px 10px!important;margin:0!important;font-size:13px!important;"; botao.addEventListener("click", () => colar(campo, botao));
-        acoes.appendChild(botao); campo.insertAdjacentElement("beforebegin", acoes); acoes.insertAdjacentElement("beforebegin", sugestoes); atualizarSugestoes(campo); campo.addEventListener("input",()=>atualizarSugestoes(campo));
+        if (!campo || campo.disabled || campo.readOnly || campo.dataset.seedNativeKeyboard4003 === "1") return;
+        campo.dataset.seedNativeKeyboard4003 = "1";
+        campo.setAttribute("inputmode", "text");
+        campo.setAttribute("autocomplete", "on");
+        campo.setAttribute("autocorrect", "on");
+        campo.setAttribute("autocapitalize", "sentences");
+        campo.setAttribute("spellcheck", "true");
+        campo.style.userSelect = "text";
+        campo.style.webkitUserSelect = "text";
     }
-    function varrer() { if (/\/index\.html?$/.test(location.pathname) || location.pathname === "/" || location.pathname === "") return; document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar); }
-    function iniciar() { varrer(); document.addEventListener("focusin", e => preparar(e.target), true); new MutationObserver(varrer).observe(document.body, {childList:true, subtree:true}); }
+    function varrer() {
+        document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar);
+    }
+    function iniciar() {
+        varrer();
+        document.addEventListener("focusin", e => preparar(e.target), true);
+        new MutationObserver(varrer).observe(document.body, {childList:true, subtree:true});
+    }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, {once:true}); else iniciar();
 })();
 '''
@@ -331,9 +292,9 @@ native_input_js = r'''// SeedControl - teclado nativo e colagem global
 for html in sorted(project.glob("*.html")):
     t = html.read_text(encoding="utf-8")
     if "teclado-nativo-seedcontrol.js" not in t:
-        t = t.replace("</head>", '<script src="teclado-nativo-seedcontrol.js?v=4002"></script>\n</head>', 1)
+        t = t.replace("</head>", '<script src="teclado-nativo-seedcontrol.js?v=4003"></script>\n</head>', 1)
     else:
-        t = re.sub(r'teclado-nativo-seedcontrol\.js\?v=\d+', 'teclado-nativo-seedcontrol.js?v=4002', t)
+        t = re.sub(r'teclado-nativo-seedcontrol\.js\?v=\d+', 'teclado-nativo-seedcontrol.js?v=4003', t)
     html.write_text(t, encoding="utf-8")
 
 if OUTPUT.exists(): OUTPUT.unlink()
