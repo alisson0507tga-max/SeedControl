@@ -263,19 +263,27 @@ for html in sorted(project.glob("*.html")):
     t = re.sub(r'\s+spellcheck="false"', ' spellcheck="true"', t, flags=re.I)
     html.write_text(t, encoding="utf-8")
 
-native_input_js = r'''// SeedControl - teclado nativo com sugestões do Android
+native_input_js = r'''// SeedControl - teclado nativo Android em todos os campos de texto
 (function () {
     "use strict";
+    const tiposSemTecladoTexto = new Set(["file", "checkbox", "radio", "button", "submit", "reset", "color", "range", "date", "datetime-local", "time", "month", "week"]);
     function preparar(campo) {
-        if (!campo || campo.disabled || campo.readOnly || campo.dataset.seedNativeKeyboard4003 === "1") return;
-        campo.dataset.seedNativeKeyboard4003 = "1";
+        if (!campo || campo.disabled || campo.readOnly || campo.dataset.seedNativeKeyboard4004 === "1") return;
+        const eInput = campo.tagName === "INPUT";
+        const eTexto = eInput || campo.tagName === "TEXTAREA" || campo.isContentEditable;
+        if (!eTexto) return;
+        const tipo = String(campo.type || "text").toLowerCase();
+        if (eInput && tiposSemTecladoTexto.has(tipo)) return;
+        if (eInput && ["number", "tel", "search"].includes(tipo)) {
+            try { campo.type = "text"; } catch (_) {}
+        }
+        campo.dataset.seedNativeKeyboard4004 = "1";
         campo.setAttribute("inputmode", "text");
         campo.setAttribute("autocomplete", "on");
         campo.setAttribute("autocorrect", "on");
         campo.setAttribute("autocapitalize", "sentences");
         campo.setAttribute("spellcheck", "true");
-        campo.style.userSelect = "text";
-        campo.style.webkitUserSelect = "text";
+        if (campo.isContentEditable) campo.setAttribute("role", "textbox");
     }
     function varrer() {
         document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar);
@@ -292,9 +300,9 @@ native_input_js = r'''// SeedControl - teclado nativo com sugestões do Android
 for html in sorted(project.glob("*.html")):
     t = html.read_text(encoding="utf-8")
     if "teclado-nativo-seedcontrol.js" not in t:
-        t = t.replace("</head>", '<script src="teclado-nativo-seedcontrol.js?v=4003"></script>\n</head>', 1)
+        t = t.replace("</head>", '<script src="teclado-nativo-seedcontrol.js?v=4004"></script>\n</head>', 1)
     else:
-        t = re.sub(r'teclado-nativo-seedcontrol\.js\?v=\d+', 'teclado-nativo-seedcontrol.js?v=4003', t)
+        t = re.sub(r'teclado-nativo-seedcontrol\.js\?v=\d+', 'teclado-nativo-seedcontrol.js?v=4004', t)
     html.write_text(t, encoding="utf-8")
 
 if OUTPUT.exists(): OUTPUT.unlink()
