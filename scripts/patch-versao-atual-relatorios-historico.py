@@ -166,10 +166,11 @@ function tipoNome(t) { return ({entrada:"Entrada",saida:"Saída",edicao:"Ediçã
 function ico(t) { return ({entrada:"➕",saida:"➖",edicao:"✏️",exclusao:"🗑️",cadastro:"🌱"}[t] || "📋"); }
 function alternarEdicaoHistorico(i, editar) { const f=document.getElementById("hist-edit-"+i), r=document.getElementById("hist-resumo-"+i); if(f)f.hidden=!editar; if(r)r.hidden=editar; }
 function salvarEdicaoHistorico(i) { const f=document.getElementById("hist-edit-"+i); const r=atualizarRegistroHistorico(i,{quantidade:f.elements.quantidade?.value,observacao:f.elements.observacao?.value,data:f.elements.data?.value,destino:f.elements.destino?.value}); if(!r.ok){alert(r.mensagem);return;} renderizarHistorico(); }
+function excluirRegistroHistorico(i) { const h=carregarHistorico(), item=h[Number(i)]; if(!item) return; if(!confirm("Excluir esta movimentação do histórico? O saldo do lote será revertido.")) return; const r=removerRegistroHistorico(i); if(!r.ok){alert(r.mensagem);return;} renderizarHistorico(); }
 function renderizarHistorico() {
     if (!lista) return; const h=carregarHistorico();
     if (!h.length) { lista.innerHTML='<div class="card"><h2>📋 Nenhuma movimentação encontrada</h2><p>Faça uma entrada ou saída para começar o histórico.</p></div>'; return; }
-    lista.innerHTML=h.map((item,i)=>{const t=String(item.tipo||"").toLowerCase(), mov=t==="entrada"||t==="saida"; return '<div class="card"><div id="hist-resumo-'+i+'"><h2>'+ico(t)+' '+escHist(tipoNome(t))+'</h2><p><strong>📅 Data:</strong> '+escHist(item.data||"-")+'</p><p><strong>🌱 Cultivar:</strong> '+escHist(item.cultivar||"-")+'</p><p><strong>📋 Lote:</strong> '+escHist(item.lote||"-")+'</p><p><strong>📦 Quantidade:</strong> '+escHist(item.quantidade??0)+' Bags</p>'+(item.destino?'<p><strong>🚚 Destino:</strong> '+escHist(item.destino)+'</p>':'')+'<p><strong>📝 Observação:</strong> '+escHist(item.observacao||"Sem observação")+'</p><button type="button" onclick="alternarEdicaoHistorico('+i+',true)">✏️ Editar card</button></div><form id="hist-edit-'+i+'" hidden onsubmit="event.preventDefault();salvarEdicaoHistorico('+i+')"><h3>Editar '+escHist(tipoNome(t))+'</h3><label>Data<input name="data" type="text" value="'+escHist(item.data||"")+'"></label>'+(mov?'<label>Quantidade de Bags<input name="quantidade" type="text" inputmode="text" value="'+escHist(item.quantidade??"")+'"></label>':'')+(item.destino!==undefined?'<label>Destino<input name="destino" type="text" value="'+escHist(item.destino||"")+'"></label>':'')+'<label>Observação<textarea name="observacao">'+escHist(item.observacao||"")+'</textarea></label><button type="submit">💾 Salvar</button> <button type="button" onclick="alternarEdicaoHistorico('+i+',false)">Cancelar</button></form></div>';}).join("");
+    lista.innerHTML=h.map((item,i)=>{const t=String(item.tipo||"").toLowerCase(), mov=t==="entrada"||t==="saida"; return '<div class="card"><div id="hist-resumo-'+i+'"><h2>'+ico(t)+' '+escHist(tipoNome(t))+'</h2><p><strong>📅 Data:</strong> '+escHist(item.data||"-")+'</p><p><strong>🌱 Cultivar:</strong> '+escHist(item.cultivar||"-")+'</p><p><strong>📋 Lote:</strong> '+escHist(item.lote||"-")+'</p><p><strong>📦 Quantidade:</strong> '+escHist(item.quantidade??0)+' Bags</p>'+(item.destino?'<p><strong>🚚 Destino:</strong> '+escHist(item.destino)+'</p>':'')+'<p><strong>📝 Observação:</strong> '+escHist(item.observacao||"Sem observação")+'</p><button type="button" onclick="alternarEdicaoHistorico('+i+',true)">✏️ Editar card</button> <button type="button" onclick="excluirRegistroHistorico('+i+')">🗑️ Excluir movimentação</button></div><form id="hist-edit-'+i+'" hidden onsubmit="event.preventDefault();salvarEdicaoHistorico('+i+')"><h3>Editar '+escHist(tipoNome(t))+'</h3><label>Data<input name="data" type="text" value="'+escHist(item.data||"")+'"></label>'+(mov?'<label>Quantidade de Bags<input name="quantidade" type="text" inputmode="text" value="'+escHist(item.quantidade??"")+'"></label>':'')+(item.destino!==undefined?'<label>Destino<input name="destino" type="text" value="'+escHist(item.destino||"")+'"></label>':'')+'<label>Observação<textarea name="observacao">'+escHist(item.observacao||"")+'</textarea></label><button type="submit">💾 Salvar</button> <button type="button" onclick="alternarEdicaoHistorico('+i+',false)">Cancelar</button></form></div>';}).join("");
 }
 function registrarOuvintesHistorico(){if(ouvintesHistoricoRegistrados)return;ouvintesHistoricoRegistrados=true;window.addEventListener("seedcontrol:atualizado",renderizarHistorico);window.addEventListener("storage",renderizarHistorico);window.addEventListener("focus",renderizarHistorico);}
 function iniciarHistorico(){renderizarHistorico();registrarOuvintesHistorico();}
@@ -201,6 +202,26 @@ function atualizarRegistroHistorico(indice, atualizacoes = {}, opcoes = {}) {
     historico[pos] = {...anterior, quantidade: movimento ? nova : (recebida === undefined ? anterior.quantidade : recebida), observacao: atualizacoes.observacao === undefined ? anterior.observacao : String(atualizacoes.observacao).trim(), data: atualizacoes.data === undefined ? anterior.data : String(atualizacoes.data).trim(), destino: atualizacoes.destino === undefined ? anterior.destino : String(atualizacoes.destino).trim()};
     salvarHistorico(historico,{silencioso:true}); if (!opcoes.silencioso) notificarMudanca(movimento ? "estoque" : "historico");
     return {ok:true,mensagem:"Registro atualizado com sucesso!",registro:historico[pos]};
+}
+
+// ======================================
+// EXCLUIR REGISTRO DO HISTÓRICO
+// ======================================
+function removerRegistroHistorico(indice, opcoes = {}) {
+    const historico = carregarHistorico(); const pos = Number(indice);
+    if (!Number.isInteger(pos) || pos < 0 || pos >= historico.length) return {ok:false,mensagem:"Registro do histórico não encontrado."};
+    const item = historico[pos], tipo = String(item.tipo || "").toLowerCase(), qtd = Number(item.quantidade) || 0;
+    if (tipo === "entrada" || tipo === "saida") {
+        const estoque = carregarEstoque(); let lote = estoque.find(x => item.loteId != null && Number(x.id) === Number(item.loteId));
+        if (!lote) lote = estoque.find(x => String(x.cultivar||"").trim() === String(item.cultivar||"").trim() && String(x.lote||"").trim() === String(item.lote||"").trim());
+        if (!lote) return {ok:false,mensagem:"O lote desta movimentação não está disponível."};
+        const saldo = (Number(lote.bags) || 0) + (tipo === "entrada" ? -qtd : qtd);
+        if (saldo < 0) return {ok:false,mensagem:"A exclusão deixaria o estoque negativo."};
+        lote.bags = saldo; salvarEstoque(estoque,{silencioso:true});
+    }
+    historico.splice(pos, 1); salvarHistorico(historico,{silencioso:true});
+    if (!opcoes.silencioso) notificarMudanca("estoque");
+    return {ok:true,mensagem:"Movimentação excluída com sucesso."};
 }
 '''
 if "function atualizarRegistroHistorico" not in text:
@@ -264,6 +285,14 @@ native_input_js = r'''// SeedControl - teclado nativo e colagem global
         campo.dispatchEvent(new Event("input", {bubbles:true})); campo.dispatchEvent(new Event("change", {bubbles:true})); campo.focus();
         try { campo.setSelectionRange(ini + texto.length, ini + texto.length); } catch (_) {}
     }
+    const CLIP_KEY = "seedcontrol:cola:sugestoes:v1";
+    const exemplos = ["Alisson", "amor", "amora"];
+    function lerCola() { try { const v=JSON.parse(localStorage.getItem(CLIP_KEY)||"[]"); return Array.isArray(v)?v.filter(Boolean).map(String):[]; } catch (_) { return []; } }
+    function guardarCola(texto) { if (!texto) return; const lista=[String(texto),...lerCola().filter(x=>x!==String(texto))].slice(0,20); try { localStorage.setItem(CLIP_KEY,JSON.stringify(lista)); } catch (_) {} }
+    function inserirTexto(campo, texto) {
+        const atual=String(campo.value||""), ini=Number.isInteger(campo.selectionStart)?campo.selectionStart:atual.length, fim=Number.isInteger(campo.selectionEnd)?campo.selectionEnd:ini;
+        campo.value=atual.slice(0,ini)+texto+atual.slice(fim); campo.dispatchEvent(new Event("input",{bubbles:true})); campo.dispatchEvent(new Event("change",{bubbles:true})); campo.focus(); try { campo.setSelectionRange(ini+texto.length,ini+texto.length); } catch (_) {}
+    }
     async function colar(campo, botao) {
         const antigo = botao.textContent; botao.disabled = true; botao.textContent = "Colando...";
         try {
@@ -271,18 +300,27 @@ native_input_js = r'''// SeedControl - teclado nativo e colagem global
             if (p?.read) texto = String((await p.read()).value || "");
             else if (navigator.clipboard?.readText) texto = String(await navigator.clipboard.readText());
             if (!texto) { alert("Não há texto copiado na área de transferência."); return; }
-            inserir(campo, texto);
+            guardarCola(texto); inserirTexto(campo, texto); atualizarSugestoes(campo);
         } catch (e) { alert("Não foi possível acessar a área de transferência. Copie o texto novamente."); }
         finally { botao.disabled = false; botao.textContent = antigo; }
+    }
+    function atualizarSugestoes(campo) {
+        const barra=campo.previousElementSibling?.classList?.contains("seed-sugestoes") ? campo.previousElementSibling : null; if (!barra) return;
+        const valor=String(campo.value||""), palavra=(valor.match(/[^\s,;]*$/)||[""])[0].toLowerCase();
+        const lista=[...new Set([...exemplos,...lerCola()])].filter(x=>!palavra || x.toLowerCase().startsWith(palavra)).slice(0,6);
+        barra.innerHTML=""; lista.forEach(x=>{ const b=document.createElement("button"); b.type="button"; b.textContent=x; b.addEventListener("mousedown",e=>e.preventDefault()); b.addEventListener("click",()=>{ const atual=String(campo.value||""), ini=Number.isInteger(campo.selectionStart)?campo.selectionStart:atual.length, inicio=atual.slice(0,ini).search(/[^\s,;]*$/); campo.setSelectionRange(inicio<0?ini:inicio,Number.isInteger(campo.selectionEnd)?campo.selectionEnd:ini); inserirTexto(campo,x); guardarCola(x); atualizarSugestoes(campo); }); barra.appendChild(b); });
+        barra.hidden=!lista.length;
     }
     function preparar(campo) {
         if (!campo || campo.disabled || campo.readOnly || campo.dataset.seedClipboard4002 === "1") return;
         campo.dataset.seedClipboard4002 = "1";
         campo.setAttribute("inputmode", "text"); campo.setAttribute("autocomplete", "on"); campo.setAttribute("autocorrect", "on"); campo.setAttribute("spellcheck", "true");
         campo.style.userSelect = "text"; campo.style.webkitUserSelect = "text";
+        const sugestoes=document.createElement("div"); sugestoes.className="seed-sugestoes"; sugestoes.setAttribute("aria-label","Sugestões e cola"); sugestoes.style.cssText="display:flex;gap:6px;overflow-x:auto;margin:3px 0 4px;padding:2px 0;";
+        const estilo=document.createElement("style"); estilo.textContent=".seed-sugestoes button{width:auto!important;min-height:30px!important;margin:0!important;padding:4px 10px!important;border:1px solid #b9c7d6!important;border-radius:14px!important;background:#eef4fa!important;color:#19324d!important;font-size:13px!important;white-space:nowrap!important}.seed-sugestoes button:active{transform:scale(.97)}"; if(!document.getElementById("seed-sugestoes-style")){estilo.id="seed-sugestoes-style";document.head.appendChild(estilo);}
         const acoes = document.createElement("div"); acoes.style.cssText = "display:flex;justify-content:flex-end;margin:3px 0 5px;";
         const botao = document.createElement("button"); botao.type = "button"; botao.textContent = "📋 Colar da área de transferência"; botao.style.cssText = "width:auto!important;min-height:34px!important;padding:6px 10px!important;margin:0!important;font-size:13px!important;"; botao.addEventListener("click", () => colar(campo, botao));
-        acoes.appendChild(botao); campo.insertAdjacentElement("beforebegin", acoes);
+        acoes.appendChild(botao); campo.insertAdjacentElement("beforebegin", acoes); acoes.insertAdjacentElement("beforebegin", sugestoes); atualizarSugestoes(campo); campo.addEventListener("input",()=>atualizarSugestoes(campo));
     }
     function varrer() { if (/\/index\.html?$/.test(location.pathname) || location.pathname === "/" || location.pathname === "") return; document.querySelectorAll("input, textarea, [contenteditable=true]").forEach(preparar); }
     function iniciar() { varrer(); document.addEventListener("focusin", e => preparar(e.target), true); new MutationObserver(varrer).observe(document.body, {childList:true, subtree:true}); }

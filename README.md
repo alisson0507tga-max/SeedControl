@@ -25,9 +25,9 @@ O APK não contém arquivos PDF estáticos. Os PDFs são gerados pelo aplicativo
 
 Os relatórios PDF, Excel e planilhas agora são gravados no armazenamento interno do aplicativo (`DATA/SeedControl/Arquivos`), evitando o erro `EACCES (Permission denied)` causado pela tentativa de criar pastas diretamente em `Documents` no Android moderno. A tela **Arquivos** permite listar os relatórios gerados e usar **Visualizar / Compartilhar** para abrir o PDF ou Excel em um aplicativo compatível.
 
-Os cards do histórico também podem ser editados. Para entradas e saídas, a quantidade alterada reconcilia automaticamente o saldo do lote e impede que o estoque fique negativo. Data, observação e destino também podem ser ajustados manualmente.
+Os cards do histórico também podem ser editados ou excluídos. Para entradas e saídas, a quantidade alterada reconcilia automaticamente o saldo do lote e impede que o estoque fique negativo; ao excluir uma movimentação, o saldo é revertido de forma correspondente. Data, observação e destino também podem ser ajustados manualmente.
 
-Todos os campos de texto e quantidade usam o teclado nativo normal do Android, com letras, números, sugestões e a área de transferência do teclado do aparelho para copiar e colar.
+Todos os campos de texto e quantidade usam o teclado nativo normal do Android, com letras, números, sugestões e a área de transferência do teclado do aparelho para copiar e colar. Uma faixa acima de cada campo também apresenta sugestões por prefixo (por exemplo, “Alisson”, “amor” e “amora”) e os últimos textos usados na cola, que podem ser inseridos com um toque.
 
 Para reimportar outro APK com a mesma estrutura, atualize o caminho `APK` no script e execute:
 
