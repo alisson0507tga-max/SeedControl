@@ -21,6 +21,12 @@ O APK não contém arquivos PDF estáticos. Os PDFs são gerados pelo aplicativo
 - Script de importação reproduzível: `scripts/importar-fonte-apk-atual.py`
 - Script de correção da versão atual: `scripts/patch-versao-atual-relatorios-historico.py`
 
+## Atualização: data editável e menu simplificado
+
+O pacote `SeedControl_v3.8.5_data_editavel_source.zip` permite editar e salvar a data de cadastro na tela **Editar Lote** e remove o atalho **PDFs, Excel e Planilhas** do menu inicial. A tela de arquivos continua acessível pelo Histórico. Para gerar novamente o pacote, execute `python3 scripts/patch-editar-data-remover-atalho.py`.
+
+Baixe a [fonte atualizada diretamente pelo GitHub](https://github.com/alisson0507tga-max/SeedControl/releases/download/seedcontrol-data-editavel-2026-09-25/SeedControl_v3.8.5_data_editavel_source.zip). O artefato é um ZIP da fonte web pública do aplicativo, **não um APK instalável**.
+
 ## Correções da versão editável
 
 Os relatórios PDF, Excel e planilhas agora são gravados no armazenamento interno do aplicativo (`DATA/SeedControl/Arquivos`), evitando o erro `EACCES (Permission denied)` causado pela tentativa de criar pastas diretamente em `Documents` no Android moderno. A tela **Arquivos** permite listar os relatórios gerados e usar **Visualizar / Compartilhar** para abrir o PDF ou Excel em um aplicativo compatível.
