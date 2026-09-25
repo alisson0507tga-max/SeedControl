@@ -15,6 +15,7 @@ from pathlib import Path
 
 MARKER = "COLUNAS_GERMINACAO_OBSERVACAO_REMOVIDAS_V1"
 SORT_MARKER = "ORDENACAO_DATA_CHEGADA_V1"
+ESTOQUE_MARKER = "ESTOQUE_ZERO_VERMELHO_E_SACAS_SEM_PONTO_V1"
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -105,6 +106,43 @@ def patch_planilhas_fieis(text: str) -> str:
     return text.replace('  function regsEC(){', f'  // {SORT_MARKER}\n{sort_code}  function regsEC(){{', 1).replace('return typeof window.carregarEntradasComerciais3904==="function"?window.carregarEntradasComerciais3904():[];', 'return ordenarPorDataChegada(typeof window.carregarEntradasComerciais3904==="function"?window.carregarEntradasComerciais3904():[]);', 1)
 
 
+def patch_planilha_js(text: str) -> str:
+    label = "planilha.js"
+    if ESTOQUE_MARKER in text:
+        return text
+    text = text.replace(
+        "// seedcontrol-planilha-fiel-soja2026-v3830",
+        f"// {ESTOQUE_MARKER}\n// seedcontrol-planilha-fiel-soja2026-v3830",
+        1,
+    )
+    text = replace_once(
+        text,
+        "    return numero.toLocaleString(\n        \"pt-BR\",\n        {\n            minimumFractionDigits: 0,\n            maximumFractionDigits: casas\n        }\n    );",
+        "    return numero.toLocaleString(\n        \"pt-BR\",\n        {\n            minimumFractionDigits: 0,\n            maximumFractionDigits: casas\n        }\n    ).replace(/[.]$/, \"\");",
+        label,
+    )
+    text = replace_once(
+        text,
+        "                return `\n\n<tr>\n\n<td>\n",
+        "                const linhaZerada = (Number(item.bags) || 0) === 0;\n                return `\n\n<tr class=\"${linhaZerada ? \"planilha-estoque-zero\" : \"\"}\">\n\n<td>\n",
+        label,
+    )
+    text = replace_once(
+        text,
+        "            const corLinha =\n                indice % 2 === 0\n                    ? COR_BRANCO\n                    : COR_AZUL_CLARO;",
+        "            const corLinha =\n                (Number(registros[indice].bags) || 0) === 0\n                    ? \"F4CCCC\"\n                    : (indice % 2 === 0 ? COR_BRANCO : COR_AZUL_CLARO);",
+        label,
+    )
+    text = text.replace('celula.z = "0.#";', 'celula.z = "0.##";')
+    text = replace_once(
+        text,
+        "            columnStyles: {",
+        "            didParseCell: function (data) {\n                if (data.section === \"body\" && registros[data.row.index] && (Number(registros[data.row.index].bags) || 0) === 0) {\n                    data.cell.styles.fillColor = [244, 204, 204];\n                    data.cell.styles.textColor = [156, 0, 6];\n                }\n            },\n            columnStyles: {",
+        label,
+    )
+    return text
+
+
 def patch_entrada_html(text: str) -> str:
     label = "entrada-comercial.html"
     if MARKER in text:
@@ -119,16 +157,21 @@ def patch_entrada_html(text: str) -> str:
 def patch_css(text: str) -> str:
     # Ajusta apenas a largura fixa da tabela e remove as regras das antigas colunas 7/8.
     if MARKER in text:
-        return text
+        if "planilha-estoque-zero" in text:
+            return text
+        regra_zero = ".tabela-planilha tbody tr.planilha-estoque-zero td,.tabela-planilha tbody tr.planilha-estoque-zero td:first-child{background:#f4cccc!important;color:#9c0006!important;}"
+        return regra_zero + "\n" + text
     text = text.replace(".ec3904-tabela{width:1120px!important;min-width:1120px!important;", ".ec3904-tabela{width:900px!important;min-width:900px!important;", 1)
     text = text.replace(".ec3904-tabela th:nth-child(7),.ec3904-tabela td:nth-child(7){width:130px}.ec3904-tabela th:nth-child(8),.ec3904-tabela td:nth-child(8){width:260px}.ec3904-tabela th:nth-child(9),.ec3904-tabela td:nth-child(9){width:80px}", ".ec3904-tabela th:nth-child(7),.ec3904-tabela td:nth-child(7){width:80px}", 1)
-    return f"/* {MARKER} */\n" + text
+    regra_zero = ".tabela-planilha tbody tr.planilha-estoque-zero td,.tabela-planilha tbody tr.planilha-estoque-zero td:first-child{background:#f4cccc!important;color:#9c0006!important;}"
+    return f"/* {MARKER} */\n{regra_zero}\n" + text
 
 
 def patch_directory(project: Path) -> None:
     files = {
         "entrada-comercial-v3904.js": patch_entrada_js,
         "planilhas-fieis-v3914.js": patch_planilhas_fieis,
+        "planilha.js": patch_planilha_js,
         "entrada-comercial.html": patch_entrada_html,
         "style.css": patch_css,
     }
