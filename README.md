@@ -25,7 +25,7 @@ O APK não contém arquivos PDF estáticos. Os PDFs são gerados pelo aplicativo
 
 O pacote `SeedControl_v3.8.5_data_editavel_source.zip` permite editar e salvar a data de cadastro na tela **Editar Lote** e remove o atalho **PDFs, Excel e Planilhas** do menu inicial. A tela de arquivos continua acessível pelo Histórico. Para gerar novamente o pacote, execute `python3 scripts/patch-editar-data-remover-atalho.py`.
 
-Baixe a [fonte atualizada diretamente pelo GitHub](https://github.com/alisson0507tga-max/SeedControl/releases/download/seedcontrol-data-editavel-2026-09-25/SeedControl_v3.8.5_data_editavel_source.zip). O artefato é um ZIP da fonte web pública do aplicativo, **não um APK instalável**.
+Baixe a [fonte atualizada (ZIP)](https://github.com/alisson0507tga-max/SeedControl/releases/download/seedcontrol-data-editavel-2026-09-25/SeedControl_v3.8.5_data_editavel_source.zip) ou o [APK assinado v3.9.7 para instalar no Android](https://github.com/alisson0507tga-max/SeedControl/releases/download/v3.9.7/SeedControl-v3.9.7-signed.apk). O ZIP contém a fonte web pública; o APK é o instalador do aplicativo.
 
 ## Correções da versão editável
 
