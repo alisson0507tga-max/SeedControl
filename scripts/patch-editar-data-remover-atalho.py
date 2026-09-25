@@ -1,12 +1,16 @@
+from argparse import ArgumentParser
 from pathlib import Path
 import re
-import shutil
 import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "SeedControl_v3.8.4_uso_imediato_source.zip"
-OUTPUT = ROOT / "SeedControl_v3.8.5_data_editavel_source.zip"
+parser = ArgumentParser(description="Torna a data do lote editável e remove o atalho de arquivos do menu inicial.")
+parser.add_argument("--source", type=Path, default=ROOT / "SeedControl_v3.8.4_uso_imediato_source.zip", help="ZIP fonte de entrada")
+parser.add_argument("--output", type=Path, default=ROOT / "SeedControl_v3.8.5_data_editavel_source.zip", help="ZIP fonte de saída")
+args = parser.parse_args()
+SOURCE = args.source if args.source.is_absolute() else ROOT / args.source
+OUTPUT = args.output if args.output.is_absolute() else ROOT / args.output
 
 if not SOURCE.exists():
     raise SystemExit(f"Fonte-base não encontrada: {SOURCE}")
@@ -81,10 +85,11 @@ with tempfile.TemporaryDirectory(prefix="seedcontrol-v385-") as temp_dir:
     index = index_path.read_text(encoding="utf-8")
     pattern = re.compile(r'\s*<p>\s*<button\s+type="button"\s+onclick="window\.location\.href=\'arquivos\.html\'">📁\s*PDFs, Excel e Planilhas</button>\s*</p>\s*', re.I)
     index, removidos = pattern.subn("\n", index, count=1)
-    if removidos != 1:
+    if removidos == 0 and 'PDFs, Excel e Planilhas</button>' in index:
         raise SystemExit("O atalho 'PDFs, Excel e Planilhas' não foi encontrado uma única vez no menu inicial.")
     index_path.write_text(index, encoding="utf-8")
 
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     if OUTPUT.exists():
         OUTPUT.unlink()
     with zipfile.ZipFile(OUTPUT, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -94,4 +99,3 @@ with tempfile.TemporaryDirectory(prefix="seedcontrol-v385-") as temp_dir:
 
 print(f"Fonte editada criada: {OUTPUT}")
 print("Alterações: data de cadastro editável/persistida; atalho removido do menu inicial.")
-print("Observação: este pacote contém a fonte web pública do app; não é um APK compilado.")
