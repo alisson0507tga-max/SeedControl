@@ -51,19 +51,12 @@ jobs:
           echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
           echo "Usando: $ZIP"
 
-      - name: Aplicar atualizações da tela de edição
-        shell: bash
-        run: |
-          python scripts/patch-editar-data-remover-atalho.py \
-            --source "${{ steps.source.outputs.zip }}" \
-            --output SeedControl_v3.9.7_data_editavel_source.zip
-
-      - name: Extrair versão atualizada
+      - name: Extrair versão aprovada
         shell: bash
         run: |
           rm -rf buildsrc native
           mkdir -p buildsrc native/www
-          unzip -q SeedControl_v3.9.7_data_editavel_source.zip -d buildsrc
+          unzip -q "${{ steps.source.outputs.zip }}" -d buildsrc
           APP_SRC="$(dirname "$(find buildsrc -type f -name index.html -print -quit)")"
           if [ ! -f "$APP_SRC/index.html" ]; then
             echo "index.html não encontrado no ZIP."
@@ -76,9 +69,12 @@ jobs:
         shell: bash
         run: |
           python scripts/patch-versao-atual-relatorios-historico.py
+          python scripts/patch-editar-data-remover-atalho.py \
+            --source SeedControl_v3.8.4_relatorios_historico_editavel_source.zip \
+            --output SeedControl_v3.9.7_data_editavel_source.zip
           rm -rf patchedsrc
           mkdir -p patchedsrc
-          unzip -q SeedControl_v3.8.4_relatorios_historico_editavel_source.zip -d patchedsrc
+          unzip -q SeedControl_v3.9.7_data_editavel_source.zip -d patchedsrc
           PATCHED_SRC="$(dirname "$(find patchedsrc -type f -name index.html -print -quit)")"
           test -f "$PATCHED_SRC/arquivo-storage-v384.js"
           rm -rf native/www
