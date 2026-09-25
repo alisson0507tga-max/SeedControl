@@ -14,6 +14,7 @@ from pathlib import Path
 
 
 MARKER = "COLUNAS_GERMINACAO_OBSERVACAO_REMOVIDAS_V1"
+SORT_MARKER = "ORDENACAO_DATA_CHEGADA_V1"
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -25,7 +26,22 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 def patch_entrada_js(text: str) -> str:
     label = "entrada-comercial-v3904.js"
     if MARKER in text:
-        return text
+        if SORT_MARKER in text:
+            return text
+        sort_code = '''
+    // Ordena da chegada mais antiga para a mais recente; datas inválidas ficam no final.
+    function dataChegada(r) {
+        const valor = String(r && r.dataEntrada || "").trim();
+        const br = valor.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+        if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1])).getTime();
+        const timestamp = Date.parse(valor);
+        return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
+    }
+    function ordenarPorDataChegada(registros) {
+        return registros.map((registro, indice) => ({registro, indice})).sort((a, b) => dataChegada(a.registro) - dataChegada(b.registro) || a.indice - b.indice).map(item => item.registro);
+    }
+'''
+        return text.replace('    function lista() {', f'    // {SORT_MARKER}\n{sort_code}    function lista() {{', 1).replace('return lista().filter(', 'return ordenarPorDataChegada(lista().filter(', 1).replace('].some(v => String(v ?? "").toLowerCase().includes(termo)));', '].some(v => String(v ?? "").toLowerCase().includes(termo))));', 1)
     text = text.replace("// seedcontrol-entrada-comercial-ui-v3904", f"// {MARKER}\n// seedcontrol-entrada-comercial-ui-v3904", 1)
     text = replace_once(text, 'colspan="9"', 'colspan="7"', label)
     text = replace_once(
@@ -42,13 +58,34 @@ def patch_entrada_js(text: str) -> str:
     text = replace_once(text, 'for (let c=0;c<8;c++)', 'for (let c=0;c<6;c++)', label)
     text = replace_once(text, 'for (let c=0;c<8;c++)', 'for (let c=0;c<6;c++)', label)
     text = replace_once(text, '["","","TOTAL",totalBags,totalKg,"","",""]', '["","","TOTAL",totalBags,totalKg,""]', label)
-    return text
+    sort_code = '''
+    // Ordena da chegada mais antiga para a mais recente; datas inválidas ficam no final.
+    function dataChegada(r) {
+        const valor = String(r && r.dataEntrada || "").trim();
+        const br = valor.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+        if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1])).getTime();
+        const timestamp = Date.parse(valor);
+        return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
+    }
+    function ordenarPorDataChegada(registros) {
+        return registros.map((registro, indice) => ({registro, indice})).sort((a, b) => dataChegada(a.registro) - dataChegada(b.registro) || a.indice - b.indice).map(item => item.registro);
+    }
+'''
+    return text.replace('    function lista() {', f'    // {SORT_MARKER}\n{sort_code}    function lista() {{', 1).replace('return lista().filter(', 'return ordenarPorDataChegada(lista().filter(', 1).replace('].some(v => String(v ?? "").toLowerCase().includes(termo)));', '].some(v => String(v ?? "").toLowerCase().includes(termo))));', 1)
 
 
 def patch_planilhas_fieis(text: str) -> str:
     label = "planilhas-fieis-v3914.js"
     if MARKER in text:
-        return text.replace('["","","TOTAL",tb,tk,"","",""]', '["","","TOTAL",tb,tk,""]', 1).replace('for(let c=0;c<8;c++)cell(lr,c)', 'for(let c=0;c<6;c++)cell(lr,c)', 1)
+        text = text.replace('["","","TOTAL",tb,tk,"","",""]', '["","","TOTAL",tb,tk,""]', 1).replace('for(let c=0;c<8;c++)cell(lr,c)', 'for(let c=0;c<6;c++)cell(lr,c)', 1)
+        if SORT_MARKER in text:
+            return text
+        sort_code = '''
+  // Ordena da chegada mais antiga para a mais recente; datas inválidas ficam no final.
+  function dataChegada(r){const valor=String(r&&r.dataEntrada||"").trim();const br=valor.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);if(br)return new Date(Number(br[3]),Number(br[2])-1,Number(br[1])).getTime();const timestamp=Date.parse(valor);return Number.isFinite(timestamp)?timestamp:Number.POSITIVE_INFINITY;}
+  function ordenarPorDataChegada(registros){return registros.map((registro,indice)=>({registro,indice})).sort((a,b)=>dataChegada(a.registro)-dataChegada(b.registro)||a.indice-b.indice).map(item=>item.registro);}
+'''
+        return text.replace('  function regsEC(){', f'  // {SORT_MARKER}\n{sort_code}  function regsEC(){{', 1).replace('return typeof window.carregarEntradasComerciais3904==="function"?window.carregarEntradasComerciais3904():[];', 'return ordenarPorDataChegada(typeof window.carregarEntradasComerciais3904==="function"?window.carregarEntradasComerciais3904():[]);', 1)
     text = text.replace("// seedcontrol-planilhas-fieis-v3914", f"// {MARKER}\n// seedcontrol-planilhas-fieis-v3914", 1)
     text = replace_once(text, 'r.pms),r.germinacao||"",r.observacao||""]', 'r.pms)]', label)
     text = replace_once(text, '["DATA(entrada)","CULTIVAR","LOTE","BAGS","Kg","PMS(g)","GERMINAÇÃO (nota)","Observação"]', '["DATA(entrada)","CULTIVAR","LOTE","BAGS","Kg","PMS(g)"]', label)
@@ -60,7 +97,12 @@ def patch_planilhas_fieis(text: str) -> str:
     text = replace_once(text, '["","","TOTAL",tb,tk,"","",""]', '["","","TOTAL",tb,tk,""]', label)
     text = replace_once(text, 'for(let c=0;c<8;c++)cell(lr,c)', 'for(let c=0;c<6;c++)cell(lr,c)', label)
     text = replace_once(text, 'head:[["DATA ENTRADA","CULTIVAR","LOTE","BAGS","Kg","PMS(g)","GERMINAÇÃO","Observação"]]', 'head:[["DATA ENTRADA","CULTIVAR","LOTE","BAGS","Kg","PMS(g)"]]', label)
-    return text
+    sort_code = '''
+  // Ordena da chegada mais antiga para a mais recente; datas inválidas ficam no final.
+  function dataChegada(r){const valor=String(r&&r.dataEntrada||"").trim();const br=valor.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);if(br)return new Date(Number(br[3]),Number(br[2])-1,Number(br[1])).getTime();const timestamp=Date.parse(valor);return Number.isFinite(timestamp)?timestamp:Number.POSITIVE_INFINITY;}
+  function ordenarPorDataChegada(registros){return registros.map((registro,indice)=>({registro,indice})).sort((a,b)=>dataChegada(a.registro)-dataChegada(b.registro)||a.indice-b.indice).map(item=>item.registro);}
+'''
+    return text.replace('  function regsEC(){', f'  // {SORT_MARKER}\n{sort_code}  function regsEC(){{', 1).replace('return typeof window.carregarEntradasComerciais3904==="function"?window.carregarEntradasComerciais3904():[];', 'return ordenarPorDataChegada(typeof window.carregarEntradasComerciais3904==="function"?window.carregarEntradasComerciais3904():[]);', 1)
 
 
 def patch_entrada_html(text: str) -> str:
