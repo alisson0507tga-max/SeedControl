@@ -1,5 +1,7 @@
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +15,15 @@ WORK.mkdir()
 with zipfile.ZipFile(SOURCE) as archive:
     archive.extractall(WORK)
 project = next(WORK.glob("*/"))
+
+# Mantém as exportações de Entrada Comercial sem as colunas Germinação e
+# Observação, tanto no Excel/PDF quanto na tabela exibida no aplicativo.
+subprocess.run([
+    sys.executable,
+    str(ROOT / "scripts" / "remover-colunas-germinacao-observacao.py"),
+    "--directory",
+    str(project),
+], check=True)
 
 storage_js = r'''// SeedControl v3.8.4 - armazenamento interno sem permissao externa
 (function () {
